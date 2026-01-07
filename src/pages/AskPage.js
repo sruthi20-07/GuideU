@@ -9,7 +9,8 @@ import {
   serverTimestamp,
   updateDoc,
   doc,
-  getDoc
+  getDoc,
+  limit
 } from "firebase/firestore";
 import { useSearchParams } from "react-router-dom";
 import ProfileMenu from "../components/ProfileMenu";
@@ -46,7 +47,9 @@ export default function AskPage() {
           collection(db, "questions"),
           where("branch", "==", selectedBranch),
           where("resourceType", "==", activeResource),
-          where("isAnswered", "==", true)
+          where("isAnswered", "==", true),
+          where("askedByYear", "==", me.year),
+          limit(30)
         )
       );
 
@@ -55,7 +58,8 @@ export default function AskPage() {
           collection(db, "questions"),
           where("askedById", "==", auth.currentUser.uid),
           where("branch", "==", selectedBranch),
-          where("resourceType", "==", activeResource)
+          where("resourceType", "==", activeResource),
+          where("askedByYear", "==", me.year)
         )
       );
 
@@ -67,10 +71,26 @@ export default function AskPage() {
         ...mine.filter(m => !answered.some(a => a.id === m.id))
       ];
 
-      const aSnap = await getDocs(collection(db, "answers"));
-
       setQuestions(merged);
-      setAnswers(aSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+      if (merged.length === 0) {
+        setAnswers([]);
+        return;
+      }
+
+      const ids = merged.map(q => q.id).slice(0, 10);
+
+      const ansSnap = await getDocs(
+        query(
+          collection(db, "answers"),
+          where("questionId", "in", ids),
+          where("branch", "==", selectedBranch),
+          where("resourceType", "==", activeResource),
+          where("askedByYear", "==", me.year)
+        )
+      );
+
+      setAnswers(ansSnap.docs.map(d => ({ id: d.id, ...d.data() })));
     };
 
     if (selectedBranch) load();
@@ -101,30 +121,33 @@ export default function AskPage() {
     const likedBy = answer.likedBy || [];
     const dislikedBy = answer.dislikedBy || [];
 
+    let newLiked = likedBy;
+    let newDisliked = dislikedBy;
+
     if (type === "like" && !likedBy.includes(uid)) {
-      const newLiked = [...likedBy, uid];
-      const newDisliked = dislikedBy.filter(x => x !== uid);
-      await updateDoc(doc(db, "answers", answer.id), {
-        likedBy: newLiked,
-        dislikedBy: newDisliked,
-        likes: newLiked.length,
-        dislikes: newDisliked.length
-      });
+      newLiked = [...likedBy, uid];
+      newDisliked = dislikedBy.filter(x => x !== uid);
     }
 
     if (type === "dislike" && !dislikedBy.includes(uid)) {
-      const newDisliked = [...dislikedBy, uid];
-      const newLiked = likedBy.filter(x => x !== uid);
-      await updateDoc(doc(db, "answers", answer.id), {
-        dislikedBy: newDisliked,
-        likedBy: newLiked,
-        dislikes: newDisliked.length,
-        likes: newLiked.length
-      });
+      newDisliked = [...dislikedBy, uid];
+      newLiked = likedBy.filter(x => x !== uid);
     }
 
-    const snap = await getDocs(collection(db, "answers"));
-    setAnswers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    await updateDoc(doc(db, "answers", answer.id), {
+      likedBy: newLiked,
+      dislikedBy: newDisliked,
+      likes: newLiked.length,
+      dislikes: newDisliked.length
+    });
+
+    setAnswers(prev =>
+      prev.map(a =>
+        a.id === answer.id
+          ? { ...a, likedBy: newLiked, dislikedBy: newDisliked, likes: newLiked.length, dislikes: newDisliked.length }
+          : a
+      )
+    );
   };
 
   const addComment = async (answer) => {
@@ -137,18 +160,17 @@ export default function AskPage() {
 
     const newComments = [...old, { uid, text }];
 
-    await updateDoc(doc(db, "answers", answer.id), {
-      comments: newComments
-    });
+    await updateDoc(doc(db, "answers", answer.id), { comments: newComments });
 
-    const snap = await getDocs(collection(db, "answers"));
-    setAnswers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    setAnswers(prev =>
+      prev.map(a => (a.id === answer.id ? { ...a, comments: newComments } : a))
+    );
+
     setCommentText({ ...commentText, [answer.id]: "" });
   };
 
   if (!profile) return null;
 
-  // 🔧 Search fix added here
   const normalizedSearch = search.trim().toLowerCase();
 
   const visible = questions
@@ -181,90 +203,28 @@ export default function AskPage() {
         />
       </div>
 
-      {/* 🔧 No results feedback */}
-      {visible.length === 0 && normalizedSearch && (
-        <div style={{ textAlign: "center", color: "#777", marginBottom: 12 }}>
-          No questions match your search
-        </div>
-      )}
+      {visible.map(q => (
+        <div key={q.id} style={{ background: "white", padding: 14, borderRadius: 10, marginBottom: 14 }}>
+          <p style={{ fontWeight: 600 }}>{q.content}</p>
 
-      <div style={{ display: "flex", gap: 10, overflowX: "auto", marginBottom: 16 }}>
-        {RESOURCES.map(r => (
-          <button
-            key={r}
-            onClick={() => setActiveResource(r)}
-            style={{
-              whiteSpace: "nowrap",
-              padding: "8px 14px",
-              borderRadius: 14,
-              fontWeight: 600,
-              background: activeResource === r ? "#2563eb" : "#e5e7eb",
-              color: activeResource === r ? "white" : "black",
-              border: "none"
-            }}
-          >
-            {r}
-          </button>
-        ))}
-      </div>
-
-      {visible.map(q => {
-        const hasAnswer = answers.some(a => a.questionId === q.id);
-
-        return (
-          <div key={q.id} style={{ background: "white", padding: 14, borderRadius: 10, marginBottom: 14 }}>
-            <p style={{ fontWeight: 600 }}>{q.content}</p>
-
-            {!hasAnswer && (
-              <div style={{ color: "#f59e0b", fontSize: 13, marginBottom: 6 }}>
-                ⏳ Waiting for answer
+          {answers.filter(a => a.questionId === q.id).map(a => (
+            <div key={a.id} style={{ background: "#f3f4f6", padding: 8, borderRadius: 8, marginTop: 6 }}>
+              <div style={{ fontSize: 12, color: "#555" }}>
+                Answered by: {a.answeredByName}
               </div>
-            )}
 
-            {answers.filter(a => a.questionId === q.id).map(a => (
-              <div key={a.id} style={{ background: "#f3f4f6", padding: 8, borderRadius: 8, marginTop: 6 }}>
-                {a.content}
+              {a.content}
 
-                <div style={{ marginTop: 6 }}>
-                  <button onClick={() => reactToAnswer(a, "like")}>👍 {a.likes || 0}</button>
-                  <button onClick={() => reactToAnswer(a, "dislike")} style={{ marginLeft: 6 }}>
-                    👎 {a.dislikes || 0}
-                  </button>
-                </div>
-
-                <input
-                  placeholder="Add comment"
-                  value={commentText[a.id] || ""}
-                  onChange={e => setCommentText({ ...commentText, [a.id]: e.target.value })}
-                  style={{ width: "100%", marginTop: 6 }}
-                />
-
-                <button onClick={() => addComment(a)} style={{ marginTop: 4 }}>
-                  Comment
+              <div style={{ marginTop: 6 }}>
+                <button onClick={() => reactToAnswer(a, "like")}>👍 {a.likes || 0}</button>
+                <button onClick={() => reactToAnswer(a, "dislike")} style={{ marginLeft: 6 }}>
+                  👎 {a.dislikes || 0}
                 </button>
-
-                {(a.comments || []).map((c, i) => (
-                  <div key={i} style={{ fontSize: 12, marginTop: 4 }}>
-                    💬 {c.text}
-                  </div>
-                ))}
               </div>
-            ))}
-          </div>
-        );
-      })}
-
-      <div style={{ marginTop: 20 }}>
-        <textarea
-          placeholder="Describe your question..."
-          value={desc}
-          onChange={e => setDesc(e.target.value)}
-          style={{ width: "100%", height: 70, padding: 8, borderRadius: 8, resize: "none" }}
-        />
-        <button onClick={submitQuestion} style={{ marginTop: 10 }}>
-          Submit Question
-        </button>
-      </div>
+            </div>
+          ))}
+        </div>
+      ))}
     </div>
   );
 }

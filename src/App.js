@@ -1,8 +1,11 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
+import CareerDiscoveryPage from "./pages/CareerDiscoveryPage";
+
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
 
@@ -10,9 +13,12 @@ function Layout({ children }) {
   const location = useLocation();
 <<<<<<< HEAD
 
+<<<<<<< Updated upstream
   // Hide navbar ONLY on landing + auth pages
 =======
 >>>>>>> main
+=======
+>>>>>>> Stashed changes
   const hideNavbar =
     location.pathname === "/" ||
     location.pathname === "/login" ||
@@ -31,11 +37,13 @@ export default function App() {
     <BrowserRouter>
       <Layout>
         <Routes>
+<<<<<<< Updated upstream
 <<<<<<< HEAD
           {/* ✅ FRONT PAGE */}
+=======
+          {/* Public */}
+>>>>>>> Stashed changes
           <Route path="/" element={<Home />} />
-
-          {/* Auth pages */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
@@ -56,6 +64,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+<<<<<<< Updated upstream
 <<<<<<< HEAD
 =======
           <Route
@@ -83,6 +92,17 @@ export default function App() {
             }
           />
 >>>>>>> main
+=======
+
+          <Route
+            path="/career"
+            element={
+              <ProtectedRoute>
+                <CareerDiscoveryPage />
+              </ProtectedRoute>
+            }
+          />
+>>>>>>> Stashed changes
         </Routes>
       </Layout>
     </BrowserRouter>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -9,10 +9,9 @@ import SuggestPage from "./pages/SuggestPage";
 import ExplorePage from "./pages/ExplorePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
-import { MenuContext } from "./context/MenuContext";
 
 /* ---------- Layout ---------- */
-function Layout() {
+function Layout({ children }) {
   const location = useLocation();
 
   const hideNavbar =
@@ -33,7 +32,6 @@ export default function App() {
     <BrowserRouter>
       <Layout>
         <Routes>
-
           {/* HOME FIRST */}
           <Route path="/" element={<Home />} />
 
@@ -74,7 +72,6 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-
         </Routes>
       </Layout>
     </BrowserRouter>
