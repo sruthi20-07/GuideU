@@ -8,7 +8,8 @@ import {
   doc,
   updateDoc,
   arrayUnion,
-  arrayRemove
+  arrayRemove,
+  onSnapshot
 } from "firebase/firestore";
 import ProfileMenu from "../components/ProfileMenu";
 
@@ -30,11 +31,10 @@ export default function ExplorePage() {
 
   const uid = auth.currentUser?.uid;
 
+  // 🔄 Initial load (kept)
   useEffect(() => {
     const load = async () => {
-      const qSnap = await getDocs(
-        query(collection(db, "questions"), where("isAnswered", "==", true))
-      );
+      const qSnap = await getDocs(collection(db, "questions"));
       const aSnap = await getDocs(collection(db, "answers"));
 
       setQuestions(qSnap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -43,9 +43,29 @@ export default function ExplorePage() {
     load();
   }, []);
 
+  // 🧠 Live updates
+  useEffect(() => {
+    const unsubQ = onSnapshot(collection(db, "questions"), snap => {
+      setQuestions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    const unsubA = onSnapshot(collection(db, "answers"), snap => {
+      setAnswers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => {
+      unsubQ();
+      unsubA();
+    };
+  }, []);
+
   const normalizedSearch = search.trim().toLowerCase();
 
+  // 🎯 Only show questions that have answers
+  const answeredQuestionIds = new Set(answers.map(a => a.questionId));
+
   const visible = questions
+    .filter(q => answeredQuestionIds.has(q.id))
     .filter(q => q.resourceType === activeResource)
     .filter(q => q.content.toLowerCase().includes(normalizedSearch))
     .map(q => {
