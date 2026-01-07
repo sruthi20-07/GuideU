@@ -19,35 +19,42 @@ export default function SuggestPage() {
   const [answerText, setAnswerText] = useState({});
   const [editText, setEditText] = useState({});
   const [activeYear, setActiveYear] = useState(null);
-  const [submitted, setSubmitted] = useState({}); // 🆕 track submitted
+  const [submitted, setSubmitted] = useState({});
 
   const [params] = useSearchParams();
   const selectedBranch = params.get("branch");
 
+  /* 🔹 LOAD DATA (ONLY ONCE) */
   useEffect(() => {
     const load = async () => {
-      const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
-      const me = userSnap.data();
-      setProfile(me);
+      const userSnap = await getDoc(
+        doc(db, "users", auth.currentUser.uid)
+      );
+      setProfile(userSnap.data());
 
       const qSnap = await getDocs(collection(db, "questions"));
       const aSnap = await getDocs(collection(db, "answers"));
 
-      const allQ = qSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const allA = aSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const allQuestions = qSnap.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      }));
 
-      const filtered = selectedBranch
-        ? allQ.filter(q => q.branch === selectedBranch)
-        : allQ;
+      const filteredQuestions = selectedBranch
+        ? allQuestions.filter(q => q.branch === selectedBranch)
+        : allQuestions;
 
-      setQuestions(filtered);
-      setAnswers(allA);
+      setQuestions(filteredQuestions);
+      setAnswers(aSnap.docs.map(d => ({ id: d.id, ...d.data() })));
     };
 
     load();
   }, [selectedBranch]);
 
-  const userYear = profile?.year === "alumni" ? 5 : Number(profile?.year);
+  /* 🔹 YEAR LOGIC */
+  const userYear =
+    profile?.year === "alumni" ? 5 : Number(profile?.year);
+
   const maxYear = userYear ? userYear - 1 : 0;
 
   const years = [];
@@ -59,11 +66,12 @@ export default function SuggestPage() {
     }
   }, [years, activeYear]);
 
-  if (!profile) return null;
+  if (!profile || !activeYear) return null;
 
+  /* 🔹 SUBMIT ANSWER */
   const submitAnswer = async (qid) => {
     if (!answerText[qid]?.trim()) {
-      alert("Please write an answer before submitting.");
+      alert("Write an answer");
       return;
     }
 
@@ -82,6 +90,7 @@ export default function SuggestPage() {
     setAnswerText({ ...answerText, [qid]: "" });
   };
 
+  /* 🔹 SAVE EDIT */
   const saveEdit = async (aid) => {
     await updateDoc(doc(db, "answers", aid), {
       content: editText[aid]
@@ -92,16 +101,20 @@ export default function SuggestPage() {
     setEditText({ ...editText, [aid]: "" });
   };
 
+  /* 🔹 QUESTION FILTERING */
   const yearQuestions = questions.filter(
     q => Number(q.askedByYear) === activeYear
   );
 
+  const hasAnyAnswer = (qid) =>
+    answers.some(a => a.questionId === qid);
+
   const answered = yearQuestions.filter(q =>
-    answers.some(a => a.questionId === q.id)
+    hasAnyAnswer(q.id)
   );
 
   const unanswered = yearQuestions.filter(q =>
-    !answers.some(a => a.questionId === q.id)
+    !hasAnyAnswer(q.id)
   );
 
   return (
@@ -118,7 +131,6 @@ export default function SuggestPage() {
               padding: "8px 16px",
               borderRadius: 8,
               border: "none",
-              cursor: "pointer",
               background: activeYear === y ? "#2563eb" : "#e5e7eb",
               color: activeYear === y ? "white" : "black",
               fontWeight: 600
@@ -129,7 +141,6 @@ export default function SuggestPage() {
         ))}
       </div>
 
-      {/* UNANSWERED & ANSWERED SIDE BY SIDE */}
       <div style={{ display: "flex", gap: 20 }}>
 
         {/* UNANSWERED */}
@@ -141,25 +152,19 @@ export default function SuggestPage() {
           {unanswered.map(q => (
             <div key={q.id} style={{ background: "#fff7f7", padding: 12, borderRadius: 10, marginTop: 10 }}>
               <div style={{ fontWeight: 600 }}>{q.content}</div>
+
               <textarea
-                placeholder="Write answer..."
+                placeholder="Write your answer..."
                 value={answerText[q.id] || ""}
-                onChange={e => setAnswerText({ ...answerText, [q.id]: e.target.value })}
+                onChange={e =>
+                  setAnswerText({ ...answerText, [q.id]: e.target.value })
+                }
                 style={{ width: "100%", marginTop: 6 }}
               />
 
-              <button
-                onClick={() => submitAnswer(q.id)}
-                style={{ marginTop: 6 }}
-              >
+              <button onClick={() => submitAnswer(q.id)} style={{ marginTop: 6 }}>
                 Submit
               </button>
-
-              {submitted[q.id] && (
-                <div style={{ color: "green", marginTop: 4, fontWeight: 600 }}>
-                  Submitted ✔
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -174,22 +179,40 @@ export default function SuggestPage() {
             <div key={q.id} style={{ background: "#f0fdf4", padding: 12, borderRadius: 10, marginTop: 10 }}>
               <div style={{ fontWeight: 600 }}>{q.content}</div>
 
-              {answers.filter(a => a.questionId === q.id).map(a => (
-                <div key={a.id} style={{ background: "#ecfeff", padding: 8, borderRadius: 8, marginTop: 6 }}>
-                  {a.answeredById === auth.currentUser.uid ? (
-                    <>
-                      <textarea
-                        value={editText[a.id] ?? a.content}
-                        onChange={e => setEditText({ ...editText, [a.id]: e.target.value })}
-                        style={{ width: "100%" }}
-                      />
-                      <button onClick={() => saveEdit(a.id)}>Save</button>
-                    </>
-                  ) : (
-                    <div>{a.content}</div>
-                  )}
-                </div>
-              ))}
+              {answers
+                .filter(a => a.questionId === q.id)
+                .map(a => (
+                  <div key={a.id} style={{ background: "#ecfeff", padding: 8, borderRadius: 8, marginTop: 6 }}>
+                    {a.answeredById === auth.currentUser.uid ? (
+                      <>
+                        <textarea
+                          value={editText[a.id] ?? a.content}
+                          onChange={e =>
+                            setEditText({ ...editText, [a.id]: e.target.value })
+                          }
+                          style={{ width: "100%" }}
+                        />
+                        <button onClick={() => saveEdit(a.id)}>Save</button>
+                      </>
+                    ) : (
+                      <div>{a.content}</div>
+                    )}
+                  </div>
+                ))}
+
+              {/* ADD ANOTHER ANSWER */}
+              <textarea
+                placeholder="Add another answer..."
+                value={answerText[q.id] || ""}
+                onChange={e =>
+                  setAnswerText({ ...answerText, [q.id]: e.target.value })
+                }
+                style={{ width: "100%", marginTop: 8 }}
+              />
+
+              <button onClick={() => submitAnswer(q.id)} style={{ marginTop: 6 }}>
+                Submit
+              </button>
             </div>
           ))}
         </div>

@@ -1,7 +1,15 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db } from "../firebase";
-import { doc, getDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  updateDoc
+} from "firebase/firestore";
 import { MenuContext } from "../context/MenuContext";
 
 export default function Navbar() {
@@ -12,6 +20,7 @@ export default function Navbar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [profile, setProfile] = useState(null);
   const [dailyStreak, setDailyStreak] = useState(0);
+  const [notifications, setNotifications] = useState([]); // 🆕
   const profileRef = useRef(null);
 
   /* Hide navbar on auth pages */
@@ -28,6 +37,22 @@ export default function Navbar() {
       setProfile(data);
       setDailyStreak(data?.dailyStreak || 0);
     });
+  }, []);
+
+  /* 🔔 Live Notifications */
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const q = query(
+      collection(db, "notifications"),
+      where("userId", "==", auth.currentUser.uid)
+    );
+
+    const unsub = onSnapshot(q, snap => {
+      setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => unsub();
   }, []);
 
   /* Close dropdown on outside click */
@@ -89,6 +114,12 @@ export default function Navbar() {
 
       {/* RIGHT */}
       <div style={styles.right} ref={profileRef}>
+
+        {/* 🔔 Notification Bell */}
+        <div style={{ cursor: "pointer", marginRight: 12 }}>
+          🔔 {notifications.filter(n => !n.read).length}
+        </div>
+
         <div
           style={styles.avatar}
           onClick={(e) => {
@@ -146,6 +177,33 @@ export default function Navbar() {
                   🪙 Coins: {profile.coins || 0}
                 </>
               )}
+            </div>
+
+            <div style={styles.divider} />
+
+            {/* 🔔 Notifications Panel */}
+            <div style={{ marginTop: 10 }}>
+              <b>Notifications</b>
+
+              {notifications.map(n => (
+                <div
+                  key={n.id}
+                  style={{
+                    fontSize: 13,
+                    padding: 6,
+                    background: n.read ? "#f3f4f6" : "#e0f2fe",
+                    marginTop: 6,
+                    borderRadius: 6,
+                    cursor: "pointer"
+                  }}
+                  onClick={async () => {
+                    await updateDoc(doc(db, "notifications", n.id), { read: true });
+                    navigate(n.link);
+                  }}
+                >
+                  {n.message}
+                </div>
+              ))}
             </div>
 
             <div style={styles.divider} />
