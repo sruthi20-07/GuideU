@@ -11,6 +11,7 @@ import {
   updateDoc
 } from "firebase/firestore";
 import { MenuContext } from "../context/MenuContext";
+import { avatarMap, AVATAR_KEYS } from "../utils/avatarMap";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -18,17 +19,16 @@ export default function Navbar() {
   const { toggleMenu } = useContext(MenuContext);
 
   const [profileOpen, setProfileOpen] = useState(false);
+  const [editAvatar, setEditAvatar] = useState(false);
   const [profile, setProfile] = useState(null);
   const [dailyStreak, setDailyStreak] = useState(0);
-  const [notifications, setNotifications] = useState([]); // 🆕
+  const [notifications, setNotifications] = useState([]);
   const profileRef = useRef(null);
 
-  /* Hide navbar on auth pages */
   const hideNavbar =
     location.pathname === "/login" ||
     location.pathname === "/register";
 
-  /* Load profile */
   useEffect(() => {
     if (!auth.currentUser) return;
 
@@ -39,7 +39,6 @@ export default function Navbar() {
     });
   }, []);
 
-  /* 🔔 Live Notifications */
   useEffect(() => {
     if (!auth.currentUser) return;
 
@@ -55,7 +54,6 @@ export default function Navbar() {
     return () => unsub();
   }, []);
 
-  /* Close dropdown on outside click */
   useEffect(() => {
     function close(e) {
       if (
@@ -64,6 +62,7 @@ export default function Navbar() {
         !profileRef.current.contains(e.target)
       ) {
         setProfileOpen(false);
+        setEditAvatar(false);
       }
     }
     document.addEventListener("mousedown", close);
@@ -75,18 +74,21 @@ export default function Navbar() {
   const name = profile?.name || "User";
   const initial = name.charAt(0).toUpperCase();
 
+  const avatarSrc =
+    profile?.avatar && avatarMap[profile.avatar]
+      ? avatarMap[profile.avatar]
+      : null;
+
   const isAlumni = profile?.year === 5 || profile?.year === "alumni";
   const displayYear = isAlumni ? "🎓 Alumni" : `Year: ${profile?.year}`;
 
   return (
     <div style={styles.navbar}>
-      {/* LEFT */}
       <div style={styles.left}>
         <button
           style={styles.menuBtn}
           onClick={() => {
             setProfileOpen(false);
-
             if (location.pathname === "/dashboard") {
               toggleMenu();
             } else {
@@ -109,13 +111,9 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* CENTER */}
       <div style={styles.center}>GuideU</div>
 
-      {/* RIGHT */}
       <div style={styles.right} ref={profileRef}>
-
-        {/* 🔔 Notification Bell */}
         <div style={{ cursor: "pointer", marginRight: 12 }}>
           🔔 {notifications.filter(n => !n.read).length}
         </div>
@@ -127,23 +125,58 @@ export default function Navbar() {
             setProfileOpen(prev => !prev);
           }}
         >
-          {initial}
+          {avatarSrc ? (
+            <img
+              src={avatarSrc}
+              alt="avatar"
+              style={{ width: "100%", height: "100%", borderRadius: "50%" }}
+            />
+          ) : (
+            initial
+          )}
         </div>
 
         {profileOpen && profile && (
           <div style={styles.dropdown}>
+            <div onClick={() => setProfileOpen(false)} style={styles.closeBtn}>×</div>
 
-            {/* CLOSE BUTTON */}
-            <div
-              onClick={() => setProfileOpen(false)}
-              style={styles.closeBtn}
-            >
-              ×
-            </div>
-
-            {/* USER INFO */}
             <div style={styles.userInfo}>
-              <div style={styles.avatarLarge}>{initial}</div>
+              <div style={{ position: "relative" }}>
+                <div style={styles.avatarLarge}>
+                  {avatarSrc ? (
+                    <img
+                      src={avatarSrc}
+                      alt="avatar"
+                      style={{ width: "100%", height: "100%", borderRadius: "50%" }}
+                    />
+                  ) : (
+                    initial
+                  )}
+                </div>
+
+                {/* ✏️ EDIT ICON */}
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: -2,
+                    right: -2,
+                    background: "#2563eb",
+                    color: "#fff",
+                    borderRadius: "50%",
+                    width: 22,
+                    height: 22,
+                    fontSize: 12,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer"
+                  }}
+                  onClick={() => setEditAvatar(prev => !prev)}
+                >
+                  ✏️
+                </div>
+              </div>
+
               <div>
                 <div style={styles.name}>{profile.name}</div>
                 <div style={styles.sub}>
@@ -153,38 +186,42 @@ export default function Navbar() {
               </div>
             </div>
 
+            {editAvatar && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 12 }}>
+                {AVATAR_KEYS.map(key => (
+                  <img
+                    key={key}
+                    src={avatarMap[key]}
+                    alt="avatar"
+                    style={{
+                      width: 50,
+                      height: 50,
+                      borderRadius: "50%",
+                      cursor: "pointer",
+                      border: profile.avatar === key ? "3px solid #2563eb" : "2px solid transparent"
+                    }}
+                    onClick={async () => {
+                      await updateDoc(doc(db, "users", auth.currentUser.uid), { avatar: key });
+                      setProfile(prev => ({ ...prev, avatar: key }));
+                      setEditAvatar(false);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
             <div style={styles.divider} />
 
-            {/* ROLE-BASED STATS */}
             <div style={{ fontSize: 14, lineHeight: "1.6" }}>
-              {profile.year === 1 && (
-                <>
-                  📝 Questions Asked: {profile.questionsAsked || 0}<br />
-                  🔥 Daily Streak: {dailyStreak} days
-                </>
-              )}
-
-              {profile.year > 1 && profile.year < 5 && (
-                <>
-                  📝 Questions Asked: {profile.questionsAsked || 0}<br />
-                  🪙 Coins: {profile.coins || 0}<br />
-                  🔥 Daily Streak: {dailyStreak} days
-                </>
-              )}
-
-              {isAlumni && (
-                <>
-                  🪙 Coins: {profile.coins || 0}
-                </>
-              )}
+              📝 Questions Asked: {profile.questionsAsked || 0}<br />
+              🪙 Coins: {profile.coins || 0}<br />
+              🔥 Daily Streak: {dailyStreak} days
             </div>
 
             <div style={styles.divider} />
 
-            {/* 🔔 Notifications Panel */}
             <div style={{ marginTop: 10 }}>
               <b>Notifications</b>
-
               {notifications.map(n => (
                 <div
                   key={n.id}

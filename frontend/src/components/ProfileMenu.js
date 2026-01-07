@@ -1,37 +1,60 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { auth, db } from "../firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-
-/* 👤 AVATARS */
-import avatar1 from "../assets/avatars/avatar1.png";
-import avatar2 from "../assets/avatars/avatar2.png";
-import avatar3 from "../assets/avatars/avatar3.png";
-import avatar4 from "../assets/avatars/avatar4.png";
-import avatar5 from "../assets/avatars/avatar5.png";
-import avatar6 from "../assets/avatars/avatar6.png";
-
-const AVATARS = [avatar1, avatar2, avatar3, avatar4, avatar5, avatar6];
+import { avatarMap, AVATAR_KEYS } from "../utils/avatarMap";
 
 export default function ProfileMenu() {
   const [open, setOpen] = useState(false);
-  const [profile, setProfile] = useState(null);
   const [editAvatar, setEditAvatar] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const menuRef = useRef();
 
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!auth.currentUser) return;
+
     const load = async () => {
       const snap = await getDoc(doc(db, "users", auth.currentUser.uid));
-      setProfile(snap.data());
+
+      const data = snap.data();
+
+      // 🧹 AUTO-REPAIR BROKEN AVATAR DATA
+      if (!data.avatar || !avatarMap[data.avatar]) {
+        const defaultAvatar = AVATAR_KEYS[0];
+
+        await updateDoc(doc(db, "users", auth.currentUser.uid), {
+          avatar: defaultAvatar
+        });
+
+        setProfile({ ...data, avatar: defaultAvatar });
+      } else {
+        setProfile(data);
+      }
     };
+
     load();
   }, []);
 
-  const changeAvatar = async (a) => {
-    await updateDoc(doc(db, "users", auth.currentUser.uid), { avatar: a });
-    setProfile({ ...profile, avatar: a });
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpen(false);
+        setEditAvatar(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const updateAvatar = async (key) => {
+    await updateDoc(doc(db, "users", auth.currentUser.uid), { avatar: key });
+
+    setProfile(prev => ({ ...prev, avatar: key }));
     setEditAvatar(false);
   };
 
@@ -43,42 +66,52 @@ export default function ProfileMenu() {
   if (!profile) return null;
 
   return (
-    <div style={{ position: "absolute", top: 15, right: 15, zIndex: 100 }}>
-      <div onClick={() => setOpen(true)} style={{ cursor: "pointer" }}>
+    <div style={{ position: "absolute", top: 15, right: 15 }} ref={menuRef}>
+      {/* AVATAR ICON */}
+      <div onClick={() => setOpen(prev => !prev)} style={{ cursor: "pointer" }}>
         <img
-          src={profile.avatar}
-          alt="avatar"
-          style={{ width: 42, height: 42, borderRadius: "50%" }}
+          src={avatarMap[profile.avatar]}
+          alt="profile"
+          style={{ width: 44, height: 44, borderRadius: "50%" }}
         />
       </div>
 
       {open && (
         <div style={styles.menu}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <img src={profile.avatar} style={styles.bigAvatar} />
-            <span
-              onClick={() => setEditAvatar(!editAvatar)}
-              style={styles.pencil}
+          <strong>{profile.name}</strong>
+
+          <div style={{ marginTop: 10 }}>
+            <button
+              onClick={() => setEditAvatar(prev => !prev)}
+              style={styles.editBtn}
             >
-              ✏️
-            </span>
+              ✏️ Change Avatar
+            </button>
           </div>
 
           {editAvatar && (
             <div style={styles.avatarGrid}>
-              {AVATARS.map((a, i) => (
+              {AVATAR_KEYS.map(key => (
                 <img
-                  key={i}
-                  src={a}
-                  onClick={() => changeAvatar(a)}
-                  style={styles.avatar}
+                  key={key}
+                  src={avatarMap[key]}
+                  onClick={() => updateAvatar(key)}
+                  style={{
+                    ...styles.avatar,
+                    border:
+                      profile.avatar === key
+                        ? "3px solid #2563eb"
+                        : "2px solid transparent"
+                  }}
+                  alt="avatar"
                 />
               ))}
             </div>
           )}
 
-          <strong>{profile.name}</strong>
-          <button style={styles.logout} onClick={logout}>Logout</button>
+          <button onClick={logout} style={styles.logout}>
+            Logout
+          </button>
         </div>
       )}
     </div>
@@ -87,29 +120,26 @@ export default function ProfileMenu() {
 
 const styles = {
   menu: {
-    position: "absolute",
-    right: 0,
-    top: 50,
+    marginTop: 10,
     background: "white",
-    padding: 16,
+    padding: 14,
+    width: 240,
     borderRadius: 12,
-    width: 260,
     boxShadow: "0 10px 20px rgba(0,0,0,.15)"
   },
-  bigAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: "50%"
-  },
-  pencil: {
-    cursor: "pointer",
-    fontSize: 18
+  editBtn: {
+    width: "100%",
+    padding: 6,
+    borderRadius: 6,
+    background: "#e5e7eb",
+    border: "none",
+    cursor: "pointer"
   },
   avatarGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(3,1fr)",
     gap: 10,
-    margin: "12px 0"
+    marginTop: 10
   },
   avatar: {
     width: 50,
@@ -118,13 +148,13 @@ const styles = {
     cursor: "pointer"
   },
   logout: {
-    marginTop: 14,
+    marginTop: 12,
     width: "100%",
-    padding: 9,
+    padding: 8,
     background: "#ef4444",
     color: "white",
     border: "none",
-    borderRadius: 8,
+    borderRadius: 6,
     cursor: "pointer"
   }
 };

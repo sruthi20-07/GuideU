@@ -3,16 +3,7 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { useNavigate } from "react-router-dom";
-
-/* 👤 AVATARS */
-import avatar1 from "../assets/avatars/avatar1.png";
-import avatar2 from "../assets/avatars/avatar2.png";
-import avatar3 from "../assets/avatars/avatar3.png";
-import avatar4 from "../assets/avatars/avatar4.png";
-import avatar5 from "../assets/avatars/avatar5.png";
-import avatar6 from "../assets/avatars/avatar6.png";
-
-const AVATARS = [avatar1, avatar2, avatar3, avatar4, avatar5, avatar6];
+import { avatarMap, AVATAR_KEYS } from "../utils/avatarMap";
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -20,14 +11,14 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [year, setYear] = useState(1);
   const [branch, setBranch] = useState("");
-  const [avatar, setAvatar] = useState(null);
+  const [avatar, setAvatar] = useState("");
   const [popup, setPopup] = useState(null);
 
   const navigate = useNavigate();
 
   const validate = () => {
     if (!name || !email || !password || !branch || !avatar)
-      return "All fields including avatar are required";
+      return "All fields including profile picture are required";
     if (!/^\S+@\S+\.\S+$/.test(email))
       return "Invalid email format";
     if (password.length < 6)
@@ -50,14 +41,23 @@ export default function Register() {
         email,
         year,
         branch,
-        avatar,        // 👈 SAVED HERE
+        avatar,
+        dailyStreak: 0,
         createdAt: new Date()
       });
 
       setPopup({ text: "Registration successful", type: "success" });
       setTimeout(() => navigate("/dashboard"), 1500);
     } catch (err) {
-      setPopup({ text: "Registration failed. Try again.", type: "error" });
+      console.error(err);
+
+      if (err.code === "auth/email-already-in-use") {
+        setPopup({ text: "This email is already registered. Please login instead.", type: "error" });
+      } else if (err.code === "auth/weak-password") {
+        setPopup({ text: "Password should be at least 6 characters.", type: "error" });
+      } else {
+        setPopup({ text: err.message, type: "error" });
+      }
     }
   };
 
@@ -96,28 +96,23 @@ export default function Register() {
           <option value="CYBER SECURITY">CYBER SECURITY</option>
         </select>
 
-        {/* 👤 AVATAR SELECTION */}
-        <div style={styles.avatarSection}>
-          <p style={{ fontWeight: 600, marginBottom: 8 }}>
-            Choose an Avatar
-          </p>
+        <p style={{ fontWeight: 600 }}>Select Profile Picture</p>
 
-          <div style={styles.avatarGrid}>
-            {AVATARS.map((a, i) => (
-              <img
-                key={i}
-                src={a}
-                alt="avatar"
-                onClick={() => setAvatar(a)}
-                style={{
-                  ...styles.avatar,
-                  border: avatar === a
-                    ? "3px solid #2563eb"
-                    : "2px solid transparent"
-                }}
-              />
-            ))}
-          </div>
+        <div style={styles.avatarGrid}>
+          {AVATAR_KEYS.map(key => (
+            <img
+              key={key}
+              src={avatarMap[key]}
+              alt="avatar"
+              onClick={() => setAvatar(key)}
+              style={{
+                ...styles.avatar,
+                border: avatar === key
+                  ? "3px solid #2563eb"
+                  : "2px solid transparent"
+              }}
+            />
+          ))}
         </div>
 
         <button style={styles.button} onClick={register}>
@@ -140,22 +135,19 @@ export default function Register() {
 const styles = {
   page: {
     minHeight: "100vh",
-    background: "linear-gradient(to right, #f8fafc, #eef2ff)",
+    background: "#eef2ff",
     display: "flex",
     justifyContent: "center",
     alignItems: "center"
   },
   card: {
-    width: 400,
-    padding: 32,
+    width: 420,
+    padding: 30,
     borderRadius: 14,
     background: "white",
     boxShadow: "0 10px 25px rgba(0,0,0,0.1)"
   },
-  title: {
-    textAlign: "center",
-    marginBottom: 20
-  },
+  title: { textAlign: "center", marginBottom: 16 },
   input: {
     width: "100%",
     padding: 10,
@@ -163,20 +155,17 @@ const styles = {
     borderRadius: 6,
     border: "1px solid #c7d2fe"
   },
-  avatarSection: {
-    marginBottom: 18
-  },
   avatarGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
-    gap: 12
+    gap: 12,
+    marginBottom: 18
   },
   avatar: {
     width: 70,
     height: 70,
     borderRadius: "50%",
-    cursor: "pointer",
-    objectFit: "cover"
+    cursor: "pointer"
   },
   button: {
     width: "100%",
