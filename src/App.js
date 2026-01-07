@@ -8,8 +8,11 @@ import Navbar from "./components/Navbar";
 
 function Layout({ children }) {
   const location = useLocation();
+<<<<<<< HEAD
 
   // Hide navbar ONLY on landing + auth pages
+=======
+>>>>>>> main
   const hideNavbar =
     location.pathname === "/" ||
     location.pathname === "/login" ||
@@ -28,6 +31,7 @@ export default function App() {
     <BrowserRouter>
       <Layout>
         <Routes>
+<<<<<<< HEAD
           {/* ✅ FRONT PAGE */}
           <Route path="/" element={<Home />} />
 
@@ -36,6 +40,14 @@ export default function App() {
           <Route path="/register" element={<Register />} />
 
           {/* Protected */}
+=======
+          {/* PUBLIC */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* PROTECTED */}
+>>>>>>> main
           <Route
             path="/dashboard"
             element={
@@ -44,6 +56,33 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+<<<<<<< HEAD
+=======
+          <Route
+            path="/ask"
+            element={
+              <ProtectedRoute>
+                <AskPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/suggest"
+            element={
+              <ProtectedRoute>
+                <SuggestPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/explore"
+            element={
+              <ProtectedRoute>
+                <ExplorePage />
+              </ProtectedRoute>
+            }
+          />
+>>>>>>> main
         </Routes>
       </Layout>
     </BrowserRouter>
