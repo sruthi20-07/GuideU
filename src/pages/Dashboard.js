@@ -22,32 +22,22 @@ export default function Dashboard() {
     load();
   }, []);
 
-  if (!profile) {
-    return <div style={{ padding: 30 }}>Loading...</div>;
-  }
+  if (!profile) return <div style={{ padding: 30 }}>Loading...</div>;
 
   const year = Number(profile.year);
-
-  const showAsk = year >= 1 && year <= 4;
-  const showExplore = true;
-  const showSuggest = year >= 2;
 
   return (
     <div style={{ padding: 24 }}>
       <ProfileMenu />
-
       <h2>Welcome, {profile.name}</h2>
 
-      {/* Branch Selection */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 16,
-          marginTop: 20,
-          marginBottom: 30
-        }}
-      >
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gap: 16,
+        marginTop: 20,
+        marginBottom: 30
+      }}>
         {BRANCHES.map(branch => (
           <div
             key={branch}
@@ -67,31 +57,25 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Action Buttons */}
-      <div style={{ display: "flex", gap: 12 }}>
-        {showAsk && (
-          <button
-            disabled={!selectedBranch}
-            onClick={() => navigate(`/ask?branch=${selectedBranch}`)}
-          >
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        {year <= 4 && (
+          <button disabled={!selectedBranch} onClick={() => navigate(`/ask?branch=${selectedBranch}`)}>
             Ask
           </button>
         )}
 
-        {showExplore && (
-          <button onClick={() => navigate("/explore")}>
-            Explore
-          </button>
-        )}
+        <button onClick={() => navigate("/explore")}>Explore</button>
 
-        {showSuggest && (
-          <button
-            disabled={!selectedBranch}
-            onClick={() => navigate(`/suggest?branch=${selectedBranch}`)}
-          >
+        {year >= 2 && (
+          <button disabled={!selectedBranch} onClick={() => navigate(`/suggest?branch=${selectedBranch}`)}>
             Suggest
           </button>
         )}
+
+        <button onClick={() => navigate("/roadmap")}>Roadmap</button>
+        <button onClick={() => navigate("/career")}>Career Discovery</button>
+        <button onClick={() => navigate("/tasks")}>Daily Tasks</button>
+        <button onClick={() => navigate("/wellbeing")}>Wellbeing</button>
       </div>
     </div>
   );
