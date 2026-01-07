@@ -12,23 +12,17 @@ export default function Navbar() {
   const [profile, setProfile] = useState(null);
   const profileRef = useRef(null);
 
-  /* Load user profile */
+  /* Load profile */
   useEffect(() => {
     if (!auth.currentUser) return;
-
-    const loadProfile = async () => {
-      const snap = await getDoc(
-        doc(db, "users", auth.currentUser.uid)
-      );
-      setProfile(snap.data());
-    };
-
-    loadProfile();
+    getDoc(doc(db, "users", auth.currentUser.uid)).then(snap =>
+      setProfile(snap.data())
+    );
   }, []);
 
-  /* ✅ CLOSE PROFILE ON OUTSIDE CLICK */
+  /* Close profile on outside click */
   useEffect(() => {
-    function handleClickOutside(e) {
+    function close(e) {
       if (
         profileOpen &&
         profileRef.current &&
@@ -37,10 +31,8 @@ export default function Navbar() {
         setProfileOpen(false);
       }
     }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () =>
-      document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
   }, [profileOpen]);
 
   const name = profile?.name || "User";
@@ -50,18 +42,23 @@ export default function Navbar() {
     <div style={styles.navbar}>
       {/* LEFT */}
       <div style={styles.left}>
-        {/* 🔒 3 DOT MENU */}
+        {/* 3 DOTS */}
         <button
           style={styles.menuBtn}
-          onClick={toggleMenu}
-          title="Open menu"
+          onClick={() => {
+            setProfileOpen(false);
+            toggleMenu();
+          }}
         >
           ⋮
         </button>
 
         <button
           style={styles.backBtn}
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            setProfileOpen(false);
+            navigate(-1);
+          }}
         >
           Back
         </button>
@@ -74,7 +71,10 @@ export default function Navbar() {
       <div style={styles.right} ref={profileRef}>
         <div
           style={styles.avatar}
-          onClick={() => setProfileOpen(!profileOpen)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setProfileOpen(prev => !prev);
+          }}
         >
           {initial}
         </div>
@@ -113,7 +113,6 @@ export default function Navbar() {
 
             <div style={styles.divider} />
 
-            {/* LOGOUT */}
             <div
               style={styles.logout}
               onClick={() => {
@@ -134,104 +133,105 @@ export default function Navbar() {
 const styles = {
   navbar: {
     height: 60,
-    background: "white",
+    background: "#fff",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     padding: "0 16px",
-    boxShadow: "0 1px 5px rgba(0,0,0,0.1)",
     position: "sticky",
     top: 0,
-    zIndex: 1000
+    zIndex: 9999,
+    boxShadow: "0 1px 5px rgba(0,0,0,0.1)"
   },
+
+  /* ✅ FIXED LEFT ALIGNMENT */
   left: {
     display: "flex",
     alignItems: "center",
-    gap: 12
+    gap: 10,
+    marginLeft: 4
   },
-  center: {
-    fontWeight: 600,
-    fontSize: 16
-  },
-  right: {
-    position: "relative"
-  },
+
+  center: { fontWeight: 600 },
+
+  right: { position: "relative" },
+
+  /* ✅ FIXED 3 DOTS */
   menuBtn: {
-    fontSize: 30,
-    fontWeight: 900,
+    width: 40,
+    height: 40,
+    fontSize: 26,
+    fontWeight: 800,
     background: "transparent",
     border: "none",
     cursor: "pointer",
-    color: "#000"
+    color: "#000",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    lineHeight: "1"
   },
+
+  /* ✅ MATCH HEIGHT WITH DOTS */
   backBtn: {
     background: "#0ea5e9",
-    color: "white",
+    color: "#fff",
     border: "none",
-    padding: "6px 16px",
+    padding: "6px 14px",
     borderRadius: 6,
     cursor: "pointer",
-    fontWeight: 500
+    height: 32
   },
+
   avatar: {
     width: 36,
     height: 36,
     borderRadius: "50%",
     background: "#2563eb",
-    color: "white",
+    color: "#fff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontWeight: 600,
     cursor: "pointer"
   },
+
   dropdown: {
     position: "absolute",
     right: 0,
     top: 48,
     width: 260,
-    background: "white",
+    background: "#fff",
     borderRadius: 12,
-    boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
     padding: 14,
-    zIndex: 2000
+    boxShadow: "0 10px 25px rgba(0,0,0,0.15)"
   },
-  userInfo: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12
-  },
+
+  userInfo: { display: "flex", gap: 12 },
+
   avatarLarge: {
     width: 48,
     height: 48,
     borderRadius: "50%",
     background: "#2563eb",
-    color: "white",
+    color: "#fff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontWeight: 700,
-    fontSize: 18
+    fontWeight: 700
   },
-  name: {
-    fontWeight: 600
-  },
-  sub: {
-    fontSize: 13,
-    color: "#555",
-    lineHeight: 1.4
-  },
-  divider: {
-    height: 1,
-    background: "#eee",
-    margin: "12px 0"
-  },
+
+  name: { fontWeight: 600 },
+  sub: { fontSize: 13, color: "#555" },
+  divider: { height: 1, background: "#eee", margin: "12px 0" },
+
   statRow: {
     display: "flex",
     justifyContent: "space-between",
     fontSize: 14,
     padding: "6px 0"
   },
+
   logout: {
     marginTop: 6,
     padding: "8px",

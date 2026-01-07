@@ -7,15 +7,11 @@
 html, body, #root {
   width: 100%;
   height: 100%;
-  overflow: hidden; /* 🚫 NO SCROLL */
+  overflow: hidden; /* Prevent unwanted scrollbars */
   font-family: 'Segoe UI', sans-serif;
 }
 
-/* FULL PAGE BLUE GRADIENT */
+/* Global application background */
 body {
-  background: radial-gradient(
-    circle at top right,
-    #6fdcff,
-    #0f2a33 60%
-  );
+  background: #f4f6f8;
 }

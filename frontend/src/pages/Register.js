@@ -14,15 +14,9 @@ export default function Register() {
   const navigate = useNavigate();
 
   const validate = () => {
-    if (!name || !email || !password || !branch)
-      return "All fields are required";
-
-    if (!/^\S+@\S+\.\S+$/.test(email))
-      return "Invalid email format";
-
-    if (password.length < 6)
-      return "Password must be at least 6 characters";
-
+    if (!name || !email || !password || !branch) return "All fields are required";
+    if (!/^\S+@\S+\.\S+$/.test(email)) return "Invalid email format";
+    if (password.length < 6) return "Password must be at least 6 characters";
     return null;
   };
 
@@ -35,50 +29,25 @@ export default function Register() {
 
     try {
       const res = await createUserWithEmailAndPassword(auth, email, password);
-
-      await setDoc(doc(db, "users", res.user.uid), {
-        name,
-        email,
-        year,
-        branch
-      });
+      await setDoc(doc(db, "users", res.user.uid), { name, email, year, branch });
 
       setPopup({ text: "Registration successful", type: "success" });
       setTimeout(() => navigate("/dashboard"), 2000);
-
     } catch {
       setPopup({ text: "Registration failed. Try again.", type: "error" });
     }
   };
 
   return (
-    <div className="auth-container">
-      {popup && (
-        <div className="popup-overlay">
-          <div className={`popup-box popup-${popup.type}`}>
-            {popup.type === "error" && (
-              <span className="popup-close" onClick={() => setPopup(null)}>×</span>
-            )}
-            {popup.text}
-          </div>
-        </div>
-      )}
+    <div style={styles.page}>
+      <div style={styles.card}>
+        <h2 style={styles.title}>Create Account</h2>
 
-      <div className="form-box">
-        <h2>Create Account</h2>
+        <input style={styles.input} placeholder="Name" onChange={e => setName(e.target.value)} />
+        <input style={styles.input} placeholder="Email" onChange={e => setEmail(e.target.value)} />
+        <input style={styles.input} type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
 
-        <input placeholder="Name" onChange={e => setName(e.target.value)} />
-        <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
-        <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
-
-        <select
-          onChange={e =>
-            setYear(e.target.value === "alumni"
-              ? "alumni"
-              : Number(e.target.value)
-            )
-          }
-        >
+        <select style={styles.input} onChange={e => setYear(e.target.value)}>
           <option value={1}>1st Year</option>
           <option value={2}>2nd Year</option>
           <option value={3}>3rd Year</option>
@@ -86,7 +55,7 @@ export default function Register() {
           <option value="alumni">Alumni</option>
         </select>
 
-        <select onChange={e => setBranch(e.target.value)}>
+        <select style={styles.input} onChange={e => setBranch(e.target.value)}>
           <option value="">Select Branch</option>
           <option value="CSE">CSE</option>
           <option value="IT">IT</option>
@@ -99,8 +68,50 @@ export default function Register() {
           <option value="CYBER SECURITY">CYBER SECURITY</option>
         </select>
 
-        <button onClick={register}>Register</button>
+        <button style={styles.button} onClick={register}>Register</button>
       </div>
+
+      {popup && <div style={{ ...styles.popup, background: popup.type === "error" ? "#fee2e2" : "#dcfce7" }}>{popup.text}</div>}
     </div>
   );
 }
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "linear-gradient(to right, #f8fafc, #eef2ff)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  card: {
+    width: 380,
+    padding: 32,
+    borderRadius: 14,
+    background: "white",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.1)"
+  },
+  title: { textAlign: "center", marginBottom: 20 },
+  input: {
+    width: "100%",
+    padding: 10,
+    marginBottom: 12,
+    borderRadius: 6,
+    border: "1px solid #c7d2fe"
+  },
+  button: {
+    width: "100%",
+    padding: 10,
+    background: "#2563eb",
+    color: "white",
+    borderRadius: 6,
+    border: "none",
+    cursor: "pointer"
+  },
+  popup: {
+    position: "fixed",
+    bottom: 20,
+    padding: 12,
+    borderRadius: 6
+  }
+};

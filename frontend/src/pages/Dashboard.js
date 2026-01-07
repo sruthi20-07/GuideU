@@ -1,8 +1,9 @@
+import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useContext, useRef } from "react";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { MenuContext } from "../context/MenuContext";
-import { useNavigate } from "react-router-dom";
+
 
 export default function Dashboard() {
   const { menuOpen, toggleMenu } = useContext(MenuContext);
@@ -50,9 +51,10 @@ export default function Dashboard() {
               ...(activeView === "overview" && styles.activeItem)
             }}
             onClick={() => {
-              setActiveView("overview");
-              toggleMenu();
-            }}
+  toggleMenu();       // close menu first
+  setTimeout(() => navigate("/explore"), 0);
+}}
+
           >
             Overview
           </p>
@@ -67,11 +69,26 @@ export default function Dashboard() {
             Explore
           </p>
 
-          <p style={styles.item}>Branches</p>
-          <p style={styles.item}>Roadmap</p>
-          <p style={styles.item}>Career Discovery</p>
-          <p style={styles.item}>Daily Tasks</p>
-          <p style={styles.item}>Wellbeing</p>
+          <p style={styles.item} onClick={() => { navigate("/ask-suggest"); toggleMenu(); }}>
+  Ask / Suggest
+</p>
+
+<p style={styles.item} onClick={() => { navigate("/roadmap"); toggleMenu(); }}>
+  Roadmap
+</p>
+
+<p style={styles.item} onClick={() => { navigate("/career"); toggleMenu(); }}>
+  Career Discovery
+</p>
+
+<p style={styles.item} onClick={() => { navigate("/tasks"); toggleMenu(); }}>
+  Daily Tasks
+</p>
+
+<p style={styles.item} onClick={() => { navigate("/wellbeing"); toggleMenu(); }}>
+  Wellbeing
+</p>
+
         </div>
       )}
 
