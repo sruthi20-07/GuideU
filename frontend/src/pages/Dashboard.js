@@ -4,11 +4,10 @@ import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { MenuContext } from "../context/MenuContext";
 
-
 export default function Dashboard() {
   const { menuOpen, toggleMenu } = useContext(MenuContext);
   const [profile, setProfile] = useState(null);
-  const [activeView, setActiveView] = useState("overview"); // default
+  const [activeView, setActiveView] = useState("overview");
   const menuRef = useRef(null);
   const navigate = useNavigate();
 
@@ -17,11 +16,10 @@ export default function Dashboard() {
     if (!auth.currentUser) return;
 
     const load = async () => {
-      const snap = await getDoc(
-        doc(db, "users", auth.currentUser.uid)
-      );
+      const snap = await getDoc(doc(db, "users", auth.currentUser.uid));
       setProfile(snap.data());
     };
+
     load();
   }, []);
 
@@ -34,11 +32,13 @@ export default function Dashboard() {
     }
 
     document.addEventListener("mousedown", handleOutsideClick);
-    return () =>
-      document.removeEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, [menuOpen, toggleMenu]);
 
   if (!profile) return <div style={{ padding: 30 }}>Loading...</div>;
+
+  // 🧠 Alumni role logic
+  const isAlumni = profile.year === 5 || profile.year === "alumni";
 
   return (
     <div style={styles.page}>
@@ -51,10 +51,9 @@ export default function Dashboard() {
               ...(activeView === "overview" && styles.activeItem)
             }}
             onClick={() => {
-  toggleMenu();       // close menu first
-  setTimeout(() => navigate("/explore"), 0);
-}}
-
+              toggleMenu();
+              setTimeout(() => navigate("/explore"), 0);
+            }}
           >
             Overview
           </p>
@@ -69,26 +68,36 @@ export default function Dashboard() {
             Explore
           </p>
 
-          <p style={styles.item} onClick={() => { navigate("/ask-suggest"); toggleMenu(); }}>
-  Ask / Suggest
-</p>
+          <p
+            style={styles.item}
+            onClick={() => {
+              navigate("/ask-suggest");
+              toggleMenu();
+            }}
+          >
+            Ask / Suggest
+          </p>
 
-<p style={styles.item} onClick={() => { navigate("/roadmap"); toggleMenu(); }}>
-  Roadmap
-</p>
+          {/* 🚫 Restricted for Alumni */}
+          {!isAlumni && (
+            <>
+              <p style={styles.item} onClick={() => { navigate("/roadmap"); toggleMenu(); }}>
+                Roadmap
+              </p>
 
-<p style={styles.item} onClick={() => { navigate("/career"); toggleMenu(); }}>
-  Career Discovery
-</p>
+              <p style={styles.item} onClick={() => { navigate("/career"); toggleMenu(); }}>
+                Career Discovery
+              </p>
 
-<p style={styles.item} onClick={() => { navigate("/tasks"); toggleMenu(); }}>
-  Daily Tasks
-</p>
+              <p style={styles.item} onClick={() => { navigate("/tasks"); toggleMenu(); }}>
+                Daily Tasks
+              </p>
 
-<p style={styles.item} onClick={() => { navigate("/wellbeing"); toggleMenu(); }}>
-  Wellbeing
-</p>
-
+              <p style={styles.item} onClick={() => { navigate("/wellbeing"); toggleMenu(); }}>
+                Wellbeing
+              </p>
+            </>
+          )}
         </div>
       )}
 
@@ -96,74 +105,50 @@ export default function Dashboard() {
       <div style={styles.content}>
         {activeView === "overview" && (
           <>
-            <h2>Welcome, {profile.name} </h2>
+            <h2>Welcome, {profile.name}</h2>
             <p style={styles.subtitle}>
               Your personal student guidance and career support platform
             </p>
 
-            {/* ABOUT GUIDEU – SINGLE PARA */}
             <div style={styles.aboutBox}>
               <p>
-                <b>GuideU</b> is a student‑centric guidance platform designed to
-                support students throughout their academic journey by providing
-                clear career guidance, structured learning roadmaps, productivity
-                tools, and wellbeing support. It helps students overcome common
-                challenges such as career confusion, skill selection, placement
-                preparation, and academic stress by offering organised, reliable,
-                and easy‑to‑understand guidance in one place. GuideU aims to empower
-                students with clarity, confidence, and direction, making it easier
-                for them to plan their future and grow steadily during college life.
+                <b>GuideU</b> is a student-centric guidance platform designed to support
+                students throughout their academic journey by providing clear career
+                guidance, structured learning roadmaps, productivity tools, and
+                wellbeing support. GuideU empowers students with clarity, confidence,
+                and direction.
               </p>
             </div>
 
-            {/* FEATURES */}
             <div style={styles.cards}>
               <div style={styles.card}>
                 <h4>🎓 Career Guidance</h4>
-                <p>
-                  Explore career paths related to your branch and understand
-                  the skills and tools required for each role.
-                </p>
+                <p>Explore career paths related to your branch.</p>
               </div>
 
               <div style={styles.card}>
                 <h4>🧭 Learning Roadmaps</h4>
-                <p>
-                  Follow structured roadmaps that guide you from beginner level
-                  to internship and placement readiness.
-                </p>
+                <p>Structured roadmaps from beginner to placement.</p>
               </div>
 
               <div style={styles.card}>
                 <h4>🤝 Ask & Explore</h4>
-                <p>
-                  Ask questions, clear doubts, and learn from peers,
-                  seniors, and curated guidance.
-                </p>
+                <p>Ask questions and learn from peers and seniors.</p>
               </div>
 
               <div style={styles.card}>
                 <h4>📅 Daily Productivity</h4>
-                <p>
-                  Manage daily tasks, stay consistent with goals,
-                  and track your academic progress.
-                </p>
+                <p>Track tasks and maintain consistency.</p>
               </div>
 
               <div style={styles.card}>
                 <h4>💙 Student Wellbeing</h4>
-                <p>
-                  Monitor stress and motivation levels and maintain
-                  a healthy balance between studies and personal life.
-                </p>
+                <p>Maintain balance and mental health.</p>
               </div>
 
               <div style={styles.card}>
                 <h4>🚀 Your Growth Partner</h4>
-                <p>
-                  GuideU is your companion throughout college,
-                  helping you grow with clarity, confidence, and direction.
-                </p>
+                <p>Clarity, confidence, and direction.</p>
               </div>
             </div>
           </>
@@ -172,6 +157,8 @@ export default function Dashboard() {
     </div>
   );
 }
+
+/* ---------- STYLES ---------- */
 
 const styles = {
   page: {

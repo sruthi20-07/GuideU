@@ -35,7 +35,7 @@ export default function Login() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <h2 style={styles.title}>Welcome Back</h2>
+        <h2 style={styles.title}>GuideU Login</h2>
 
         <input style={styles.input} placeholder="Email" onChange={e => setEmail(e.target.value)} />
         <input style={styles.input} type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />

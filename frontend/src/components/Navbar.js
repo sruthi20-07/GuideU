@@ -1,26 +1,36 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { MenuContext } from "../context/MenuContext";
 
 export default function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toggleMenu } = useContext(MenuContext);
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [profile, setProfile] = useState(null);
+  const [dailyStreak, setDailyStreak] = useState(0);
   const profileRef = useRef(null);
+
+  /* Hide navbar on auth pages */
+  const hideNavbar =
+    location.pathname === "/login" ||
+    location.pathname === "/register";
 
   /* Load profile */
   useEffect(() => {
     if (!auth.currentUser) return;
-    getDoc(doc(db, "users", auth.currentUser.uid)).then(snap =>
-      setProfile(snap.data())
-    );
+
+    getDoc(doc(db, "users", auth.currentUser.uid)).then(snap => {
+      const data = snap.data();
+      setProfile(data);
+      setDailyStreak(data?.dailyStreak || 0);
+    });
   }, []);
 
-  /* Close profile on outside click */
+  /* Close dropdown on outside click */
   useEffect(() => {
     function close(e) {
       if (
@@ -35,19 +45,29 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", close);
   }, [profileOpen]);
 
+  if (hideNavbar) return null;
+
   const name = profile?.name || "User";
   const initial = name.charAt(0).toUpperCase();
+
+  const isAlumni = profile?.year === 5 || profile?.year === "alumni";
+  const displayYear = isAlumni ? "🎓 Alumni" : `Year: ${profile?.year}`;
 
   return (
     <div style={styles.navbar}>
       {/* LEFT */}
       <div style={styles.left}>
-        {/* 3 DOTS */}
         <button
           style={styles.menuBtn}
           onClick={() => {
             setProfileOpen(false);
-            toggleMenu();
+
+            if (location.pathname === "/dashboard") {
+              toggleMenu();
+            } else {
+              navigate("/dashboard");
+              setTimeout(() => toggleMenu(), 0);
+            }
           }}
         >
           ⋮
@@ -81,13 +101,22 @@ export default function Navbar() {
 
         {profileOpen && profile && (
           <div style={styles.dropdown}>
+
+            {/* CLOSE BUTTON */}
+            <div
+              onClick={() => setProfileOpen(false)}
+              style={styles.closeBtn}
+            >
+              ×
+            </div>
+
             {/* USER INFO */}
             <div style={styles.userInfo}>
               <div style={styles.avatarLarge}>{initial}</div>
               <div>
                 <div style={styles.name}>{profile.name}</div>
                 <div style={styles.sub}>
-                  Year: {profile.year}<br />
+                  {displayYear}<br />
                   Branch: {profile.branch}
                 </div>
               </div>
@@ -95,20 +124,28 @@ export default function Navbar() {
 
             <div style={styles.divider} />
 
-            {/* STATS */}
-            <div style={styles.statRow}>
-              <span>Questions Asked</span>
-              <b>{profile.questionsAsked || 0}</b>
-            </div>
+            {/* ROLE-BASED STATS */}
+            <div style={{ fontSize: 14, lineHeight: "1.6" }}>
+              {profile.year === 1 && (
+                <>
+                  📝 Questions Asked: {profile.questionsAsked || 0}<br />
+                  🔥 Daily Streak: {dailyStreak} days
+                </>
+              )}
 
-            <div style={styles.statRow}>
-              <span>Questions Answered</span>
-              <b>{profile.questionsAnswered || 0}</b>
-            </div>
+              {profile.year > 1 && profile.year < 5 && (
+                <>
+                  📝 Questions Asked: {profile.questionsAsked || 0}<br />
+                  🪙 Coins: {profile.coins || 0}<br />
+                  🔥 Daily Streak: {dailyStreak} days
+                </>
+              )}
 
-            <div style={styles.statRow}>
-              <span>Coins</span>
-              <b>🪙 {profile.coins || 0}</b>
+              {isAlumni && (
+                <>
+                  🪙 Coins: {profile.coins || 0}
+                </>
+              )}
             </div>
 
             <div style={styles.divider} />
@@ -130,6 +167,7 @@ export default function Navbar() {
 }
 
 /* ---------- STYLES ---------- */
+
 const styles = {
   navbar: {
     height: 60,
@@ -144,7 +182,6 @@ const styles = {
     boxShadow: "0 1px 5px rgba(0,0,0,0.1)"
   },
 
-  /* ✅ FIXED LEFT ALIGNMENT */
   left: {
     display: "flex",
     alignItems: "center",
@@ -156,7 +193,6 @@ const styles = {
 
   right: { position: "relative" },
 
-  /* ✅ FIXED 3 DOTS */
   menuBtn: {
     width: 40,
     height: 40,
@@ -172,7 +208,6 @@ const styles = {
     lineHeight: "1"
   },
 
-  /* ✅ MATCH HEIGHT WITH DOTS */
   backBtn: {
     background: "#0ea5e9",
     color: "#fff",
@@ -207,6 +242,16 @@ const styles = {
     boxShadow: "0 10px 25px rgba(0,0,0,0.15)"
   },
 
+  closeBtn: {
+    position: "absolute",
+    top: 8,
+    right: 10,
+    cursor: "pointer",
+    fontSize: 18,
+    fontWeight: 700,
+    color: "#444"
+  },
+
   userInfo: { display: "flex", gap: 12 },
 
   avatarLarge: {
@@ -224,13 +269,6 @@ const styles = {
   name: { fontWeight: 600 },
   sub: { fontSize: 13, color: "#555" },
   divider: { height: 1, background: "#eee", margin: "12px 0" },
-
-  statRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: 14,
-    padding: "6px 0"
-  },
 
   logout: {
     marginTop: 6,

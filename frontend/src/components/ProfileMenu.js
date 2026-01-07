@@ -7,10 +7,10 @@ import { useNavigate } from "react-router-dom";
 export default function ProfileMenu() {
   const [open, setOpen] = useState(false);
   const [profile, setProfile] = useState(null);
+  const [dailyStreak, setDailyStreak] = useState(0);
   const [stats, setStats] = useState({
     questions: 0,
     answered: 0,
-    likedGiven: 0,
     coins: 0
   });
 
@@ -23,6 +23,7 @@ export default function ProfileMenu() {
       const userSnap = await getDoc(doc(db, "users", uid));
       const me = userSnap.data();
       setProfile(me);
+      setDailyStreak(me.dailyStreak || 0);
 
       const qSnap = await getDocs(collection(db, "questions"));
       const aSnap = await getDocs(collection(db, "answers"));
@@ -34,16 +35,9 @@ export default function ProfileMenu() {
         myAnswers.map(a => a.data().questionId)
       );
 
-      let likedGiven = 0;
-      aSnap.docs.forEach(d => {
-        const a = d.data();
-        if ((a.likedBy || []).includes(uid)) likedGiven += 1;
-      });
-
       setStats({
         questions: myQuestions.length,
         answered: uniqueAnsweredQuestions.size,
-        likedGiven,
         coins: uniqueAnsweredQuestions.size
       });
     };
@@ -59,7 +53,7 @@ export default function ProfileMenu() {
   if (!profile) return null;
 
   const isAlumni = profile.year === 5 || profile.year === "alumni";
-  const displayYear = isAlumni ? "Alumni" : `Year ${profile.year}`;
+  const displayYear = isAlumni ? "🎓 Alumni" : `Year ${profile.year}`;
 
   return (
     <div style={{ position: "absolute", top: 15, right: 15, zIndex: 100 }}>
@@ -88,13 +82,13 @@ export default function ProfileMenu() {
             right: 0,
             top: 50,
             background: "white",
-            padding: 14,
-            borderRadius: 10,
-            width: 230,
+            padding: 16,
+            borderRadius: 12,
+            width: 240,
             boxShadow: "0 10px 20px rgba(0,0,0,.15)"
           }}
         >
-          {/* ❌ Close Button */}
+          {/* ❌ CLOSE BUTTON */}
           <div
             onClick={() => setOpen(false)}
             style={{
@@ -102,7 +96,7 @@ export default function ProfileMenu() {
               top: 8,
               right: 10,
               cursor: "pointer",
-              fontSize: 16,
+              fontSize: 18,
               fontWeight: 700,
               color: "#444"
             }}
@@ -111,41 +105,45 @@ export default function ProfileMenu() {
           </div>
 
           <strong>{profile.name}</strong>
-          <div style={{ fontSize: 12, color: "#555", marginBottom: 8 }}>
+          <div style={{ fontSize: 12, color: "#555", marginBottom: 10 }}>
             {profile.branch} • {displayYear}
           </div>
 
           <div style={{ fontSize: 13, lineHeight: "1.6" }}>
+
+            {/* 1st Year */}
             {profile.year === 1 && (
               <>
                 📝 Questions Asked: {stats.questions}<br />
-                ❤️ Likes Given: {stats.likedGiven}
+                🔥 Daily Streak: {dailyStreak} days
               </>
             )}
 
+            {/* 2nd–4th Year */}
             {profile.year > 1 && profile.year < 5 && (
               <>
                 📝 Questions Asked: {stats.questions}<br />
-                🧑‍🏫 Questions Answered: {stats.answered}<br />
+                🪙 Coins: {stats.coins}<br />
+                🔥 Daily Streak: {dailyStreak} days
+              </>
+            )}
+
+            {/* Alumni */}
+            {isAlumni && (
+              <>
                 🪙 Coins: {stats.coins}
               </>
             )}
 
-            {isAlumni && (
-              <>
-                🧑‍🏫 Questions Answered: {stats.answered}<br />
-                🪙 Coins: {stats.coins}
-              </>
-            )}
           </div>
 
           <button
             onClick={logout}
             style={{
-              marginTop: 12,
+              marginTop: 14,
               width: "100%",
-              padding: 8,
-              borderRadius: 6,
+              padding: 9,
+              borderRadius: 8,
               background: "#ef4444",
               color: "white",
               border: "none",

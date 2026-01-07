@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
-import { db } from "../firebase";
+import { db, auth } from "../firebase";
 import {
   collection,
   getDocs,
   query,
-  where
+  where,
+  doc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove
 } from "firebase/firestore";
 import ProfileMenu from "../components/ProfileMenu";
 
@@ -22,6 +26,9 @@ export default function ExplorePage() {
   const [activeResource, setActiveResource] = useState(RESOURCES[0]);
   const [search, setSearch] = useState("");
   const [openComments, setOpenComments] = useState({});
+  const [commentText, setCommentText] = useState({});
+
+  const uid = auth.currentUser?.uid;
 
   useEffect(() => {
     const load = async () => {
@@ -33,11 +40,9 @@ export default function ExplorePage() {
       setQuestions(qSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setAnswers(aSnap.docs.map(d => ({ id: d.id, ...d.data() })));
     };
-
     load();
   }, []);
 
-  // 🔧 Search fix added here
   const normalizedSearch = search.trim().toLowerCase();
 
   const visible = questions
@@ -45,10 +50,60 @@ export default function ExplorePage() {
     .filter(q => q.content.toLowerCase().includes(normalizedSearch))
     .map(q => {
       const qAnswers = answers.filter(a => a.questionId === q.id);
-      const likes = qAnswers.reduce((sum, a) => sum + (a.likes || 0), 0);
-      return { ...q, likes, answers: qAnswers };
-    })
-    .sort((a, b) => b.likes - a.likes);
+      return { ...q, answers: qAnswers };
+    });
+
+  const refreshAnswers = async () => {
+    const aSnap = await getDocs(collection(db, "answers"));
+    setAnswers(aSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+  };
+
+  const toggleLike = async (answer) => {
+    const ref = doc(db, "answers", answer.id);
+    const liked = answer.likedBy?.includes(uid);
+    const disliked = answer.dislikedBy?.includes(uid);
+
+    await updateDoc(ref, {
+      likes: liked ? (answer.likes || 0) - 1 : (answer.likes || 0) + 1,
+      dislikes: disliked ? (answer.dislikes || 0) - 1 : (answer.dislikes || 0),
+      likedBy: liked ? arrayRemove(uid) : arrayUnion(uid),
+      dislikedBy: disliked ? arrayRemove(uid) : []
+    });
+
+    refreshAnswers();
+  };
+
+  const toggleDislike = async (answer) => {
+    const ref = doc(db, "answers", answer.id);
+    const disliked = answer.dislikedBy?.includes(uid);
+    const liked = answer.likedBy?.includes(uid);
+
+    await updateDoc(ref, {
+      dislikes: disliked ? (answer.dislikes || 0) - 1 : (answer.dislikes || 0) + 1,
+      likes: liked ? (answer.likes || 0) - 1 : (answer.likes || 0),
+      dislikedBy: disliked ? arrayRemove(uid) : arrayUnion(uid),
+      likedBy: liked ? arrayRemove(uid) : []
+    });
+
+    refreshAnswers();
+  };
+
+  const addComment = async (answerId) => {
+    if (!commentText[answerId]?.trim()) return;
+
+    const safeComment = {
+      userId: uid,
+      text: commentText[answerId],
+      createdAt: Date.now()
+    };
+
+    await updateDoc(doc(db, "answers", answerId), {
+      comments: arrayUnion(safeComment)
+    });
+
+    setCommentText({ ...commentText, [answerId]: "" });
+    refreshAnswers();
+  };
 
   return (
     <div style={{ padding: 20 }}>
@@ -63,25 +118,17 @@ export default function ExplorePage() {
         />
       </div>
 
-      {/* 🔧 No results feedback */}
-      {visible.length === 0 && normalizedSearch && (
-        <div style={{ textAlign: "center", color: "#777", marginBottom: 12 }}>
-          No questions match your search
-        </div>
-      )}
-
       <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 15 }}>
         {RESOURCES.map(r => (
           <button
             key={r}
             onClick={() => setActiveResource(r)}
             style={{
-              whiteSpace: "nowrap",
               padding: "8px 14px",
               borderRadius: 14,
-              border: "none",
               background: activeResource === r ? "#2563eb" : "#e5e7eb",
-              color: activeResource === r ? "white" : "black"
+              color: activeResource === r ? "white" : "black",
+              border: "none"
             }}
           >
             {r}
@@ -90,27 +137,22 @@ export default function ExplorePage() {
       </div>
 
       {visible.map(q => (
-        <div key={q.id} style={{ background: "white", padding: 12, borderRadius: 10, marginBottom: 12 }}>
-          <div style={{ fontSize: 12, color: "#555", marginBottom: 4 }}>
-            {q.resourceType} • {q.branch} • Year {q.askedByYear}
-          </div>
-
-          <p style={{ fontWeight: 600 }}>{q.content}</p>
+        <div key={q.id} style={{ background: "white", padding: 14, borderRadius: 12, marginBottom: 16 }}>
+          <p style={{ fontWeight: 700 }}>{q.content}</p>
 
           {q.answers.map(a => (
-            <div key={a.id} style={{ background: "#f3f4f6", padding: 8, borderRadius: 8, marginTop: 6 }}>
-              {a.content}
+            <div key={a.id} style={{ background: "#f3f4f6", padding: 10, borderRadius: 10, marginTop: 8 }}>
+              <p>{a.content}</p>
 
-              <div style={{ fontSize: 12, marginTop: 4 }}>
-                👍 {a.likes || 0} &nbsp; 👎 {a.dislikes || 0}
-                &nbsp; 
+              <div style={{ fontSize: 14 }}>
+                <button onClick={() => toggleLike(a)}>👍 {a.likes || 0}</button>
+                &nbsp;&nbsp;
+                <button onClick={() => toggleDislike(a)}>👎 {a.dislikes || 0}</button>
+                &nbsp;&nbsp;
                 <span
                   style={{ cursor: "pointer", color: "#2563eb" }}
                   onClick={() =>
-                    setOpenComments({
-                      ...openComments,
-                      [a.id]: !openComments[a.id]
-                    })
+                    setOpenComments({ ...openComments, [a.id]: !openComments[a.id] })
                   }
                 >
                   💬 {(a.comments || []).length} Comments
@@ -118,21 +160,22 @@ export default function ExplorePage() {
               </div>
 
               {openComments[a.id] && (
-                <div style={{ marginTop: 6 }}>
+                <div style={{ marginTop: 8 }}>
                   {(a.comments || []).map((c, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        fontSize: 12,
-                        background: "#e5e7eb",
-                        padding: 6,
-                        borderRadius: 6,
-                        marginTop: 4
-                      }}
-                    >
+                    <div key={i} style={{ fontSize: 13, background: "#e5e7eb", padding: 6, borderRadius: 6 }}>
                       {c.text}
                     </div>
                   ))}
+
+                  <textarea
+                    placeholder="Add comment..."
+                    value={commentText[a.id] || ""}
+                    onChange={e =>
+                      setCommentText({ ...commentText, [a.id]: e.target.value })
+                    }
+                    style={{ width: "100%", marginTop: 6 }}
+                  />
+                  <button onClick={() => addComment(a.id)}>Post</button>
                 </div>
               )}
             </div>
