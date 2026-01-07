@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -8,8 +9,10 @@ import SuggestPage from "./pages/SuggestPage";
 import ExplorePage from "./pages/ExplorePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
+import { MenuContext } from "./context/MenuContext";
 
-function Layout({ children }) {
+/* ---------- Layout ---------- */
+function Layout() {
   const location = useLocation();
 
   const hideNavbar =
@@ -24,6 +27,7 @@ function Layout({ children }) {
   );
 }
 
+/* ---------- App ---------- */
 export default function App() {
   return (
     <BrowserRouter>
