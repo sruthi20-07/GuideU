@@ -19,6 +19,7 @@ export default function MentalHealthPage() {
   const [canEdit, setCanEdit] = useState(true);
   const [nextEditIn, setNextEditIn] = useState(0);
 
+  // 🔹 Load data & apply 24-hour lock
   useEffect(() => {
     const load = async () => {
       if (!auth.currentUser) return;
@@ -36,9 +37,10 @@ export default function MentalHealthPage() {
             (Date.now() - last.getTime()) / (1000 * 60 * 60 * 24)
           );
 
-          if (diffDays < 7) {
+          // ✅ 24 HOURS LOCK
+          if (diffDays < 1) {
             setCanEdit(false);
-            setNextEditIn(7 - diffDays);
+            setNextEditIn(1 - diffDays);
           }
         }
       }
@@ -50,6 +52,7 @@ export default function MentalHealthPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  // 🔹 Auto calculation
   const calculateLevels = () => {
     let stress = 1;
     let motivation = 5;
@@ -71,6 +74,7 @@ export default function MentalHealthPage() {
     };
   };
 
+  // 🔹 Save
   const saveCheckIn = async () => {
     const { stressLevel, motivationLevel } = calculateLevels();
 
@@ -87,17 +91,18 @@ export default function MentalHealthPage() {
 
     setForm(data);
     setCanEdit(false);
-    setNextEditIn(7);
+    setNextEditIn(1); // ✅ 24 hours
   };
 
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <h2 style={styles.title}>Weekly Wellbeing Check</h2>
+        {/* ✅ TITLE UPDATED */}
+        <h2 style={styles.title}>WellBeing Check</h2>
 
         {!canEdit && (
           <p style={styles.lockText}>
-            You can update again after {nextEditIn} day(s)
+            You can update again after 24 hours
           </p>
         )}
 
@@ -163,12 +168,12 @@ export default function MentalHealthPage() {
         </div>
 
         <button style={styles.button} disabled={!canEdit} onClick={saveCheckIn}>
-          Save Weekly Check
+          Save WellBeing Check
         </button>
 
         {!canEdit && (
           <div style={styles.resultBox}>
-            <h3>Your Wellbeing Summary</h3>
+            <h3>Your WellBeing Summary</h3>
             <p>Stress Level: <b>{form.stressLevel}/10</b></p>
             <p>Motivation Level: <b>{form.motivationLevel}/10</b></p>
           </div>
