@@ -1,0 +1,162 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  overflow: hidden; /* 🚫 NO SCROLL */
+  font-family: "Segoe UI", sans-serif;
+}
+
+/* FULL SCREEN BACKGROUND */
+.home-wrapper {
+  height: 100vh;
+  width: 100vw;
+  background: linear-gradient(135deg, #eef9ff, #dff3ff);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* MAIN CARD */
+.home-card {
+  width: 90%;
+  height: 85vh;
+  background: white;
+  border-radius: 24px;
+  box-shadow: 0 30px 80px rgba(0, 120, 180, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+/* CURVED BLUE SHAPES */
+.home-card::before,
+.home-card::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: #e6f6ff;
+}
+
+.home-card::before {
+  width: 420px;
+  height: 420px;
+  top: -160px;
+  right: -160px;
+}
+
+.home-card::after {
+  width: 420px;
+  height: 420px;
+  bottom: -180px;
+  left: -180px;
+}
+
+/* NAVBAR */
+.navbar {
+  height: 70px;
+  padding: 0 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-left img {
+  width: 34px;
+}
+
+.nav-left span {
+  font-weight: 700;
+  color: #1f3c88;
+  font-size: 18px;
+}
+
+.nav-right {
+  display: flex;
+  gap: 12px;
+}
+
+.login-btn {
+  background: transparent;
+  border: none;
+  color: #1f3c88;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.signup-btn {
+  background: #1f8ef1;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+/* HERO SECTION */
+.hero {
+  height: calc(100% - 70px);
+  display: flex;
+  align-items: center;
+  padding: 0 80px;
+  gap: 80px;
+  position: relative;
+  z-index: 2;
+}
+
+/* LEFT IMAGE */
+.hero-left img {
+  width: 360px;
+}
+
+/* RIGHT CONTENT */
+.hero-right {
+  max-width: 420px;
+}
+
+.hero-right h1 {
+  font-size: 42px;
+  color: #1f3c88;
+  margin-bottom: 14px;
+}
+
+.hero-right p {
+  color: #555;
+  line-height: 1.6;
+  margin-bottom: 26px;
+}
+
+/* BUTTONS */
+.hero-buttons {
+  display: flex;
+  gap: 16px;
+}
+
+.primary {
+  background: #20c6b7;
+  color: white;
+  border: none;
+  padding: 12px 26px;
+  border-radius: 30px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.outline {
+  background: transparent;
+  color: #20c6b7;
+  border: 2px solid #20c6b7;
+  padding: 12px 26px;
+  border-radius: 30px;
+  font-size: 15px;
+  cursor: pointer;
+}

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
@@ -10,10 +11,14 @@ import Navbar from "./components/Navbar";
 
 function Layout({ children }) {
   const location = useLocation();
-  const hide = location.pathname === "/" || location.pathname === "/register";
+  const hideNavbar =
+    location.pathname === "/" ||
+    location.pathname === "/login" ||
+    location.pathname === "/register";
+
   return (
     <>
-      {!hide && <Navbar />}
+      {!hideNavbar && <Navbar />}
       {children}
     </>
   );
@@ -24,13 +29,44 @@ export default function App() {
     <BrowserRouter>
       <Layout>
         <Routes>
-          <Route path="/" element={<Login />} />
+          {/* PUBLIC */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/ask" element={<ProtectedRoute><AskPage /></ProtectedRoute>} />
-          <Route path="/suggest" element={<ProtectedRoute><SuggestPage /></ProtectedRoute>} />
-          <Route path="/explore" element={<ProtectedRoute><ExplorePage /></ProtectedRoute>} />
+          {/* PROTECTED */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ask"
+            element={
+              <ProtectedRoute>
+                <AskPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/suggest"
+            element={
+              <ProtectedRoute>
+                <SuggestPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/explore"
+            element={
+              <ProtectedRoute>
+                <ExplorePage />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Layout>
     </BrowserRouter>
