@@ -87,31 +87,52 @@ export default function AskSuggest() {
       </div>
 
       {/* 🔹 ACTION BUTTONS */}
-      <div style={{ display: "flex", gap: 14 }}>
-        {/* 1st–4th years → ASK */}
-        {year <= 4 && (
-          <button
-            disabled={!selectedBranch}
-            onClick={() =>
-              navigate(`/ask?branch=${selectedBranch}`)
-            }
-          >
-            Ask
-          </button>
-        )}
+<div style={{ display: "flex", gap: 18, marginTop: 12 }}>
 
-        {/* 2nd–4th + Alumni → SUGGEST */}
-        {year >= 2 && (
-          <button
-            disabled={!selectedBranch}
-            onClick={() =>
-              navigate(`/suggest?branch=${selectedBranch}`)
-            }
-          >
-            Suggest
-          </button>
-        )}
-      </div>
+  {/* 1st–4th years → ASK */}
+  {year <= 4 && (
+    <button
+      disabled={!selectedBranch}
+      onClick={() => navigate(`/ask?branch=${selectedBranch}`)}
+      style={{
+        padding: "12px 26px",
+        fontSize: 16,
+        fontWeight: 600,
+        borderRadius: 10,
+        border: "none",
+        background: selectedBranch ? "#2563eb" : "#9ca3af",
+        color: "white",
+        cursor: selectedBranch ? "pointer" : "not-allowed",
+        boxShadow: "0 4px 10px rgba(37,99,235,0.25)"
+      }}
+    >
+      Ask
+    </button>
+  )}
+
+  {/* 2nd–4th + Alumni → SUGGEST */}
+  {year >= 2 && (
+    <button
+      disabled={!selectedBranch}
+      onClick={() => navigate(`/suggest?branch=${selectedBranch}`)}
+      style={{
+        padding: "12px 26px",
+        fontSize: 16,
+        fontWeight: 600,
+        borderRadius: 10,
+        border: "none",
+        background: selectedBranch ? "#1d4ed8" : "#9ca3af",
+        color: "white",
+        cursor: selectedBranch ? "pointer" : "not-allowed",
+        boxShadow: "0 4px 10px rgba(29,78,216,0.25)"
+      }}
+    >
+      Suggest
+    </button>
+  )}
+
+</div>
+
     </div>
   );
 }

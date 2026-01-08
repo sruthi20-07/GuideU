@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db } from "../firebase";
 import {
   doc,
-  getDoc,
   collection,
   query,
   where,
@@ -21,24 +20,31 @@ export default function Navbar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [editAvatar, setEditAvatar] = useState(false);
   const [profile, setProfile] = useState(null);
-  const [dailyStreak, setDailyStreak] = useState(0);
   const [notifications, setNotifications] = useState([]);
+
   const profileRef = useRef(null);
 
+  /* 🔹 Hide navbar on auth pages */
   const hideNavbar =
     location.pathname === "/login" ||
     location.pathname === "/register";
 
+  /* 🔥 REAL-TIME PROFILE LISTENER (FIX) */
   useEffect(() => {
     if (!auth.currentUser) return;
 
-    getDoc(doc(db, "users", auth.currentUser.uid)).then(snap => {
-      const data = snap.data();
-      setProfile(data);
-      setDailyStreak(data?.dailyStreak || 0);
+    const uid = auth.currentUser.uid;
+
+    const unsub = onSnapshot(doc(db, "users", uid), (snap) => {
+      if (snap.exists()) {
+        setProfile(snap.data());
+      }
     });
+
+    return () => unsub();
   }, []);
 
+  /* 🔔 Notifications listener */
   useEffect(() => {
     if (!auth.currentUser) return;
 
@@ -54,6 +60,7 @@ export default function Navbar() {
     return () => unsub();
   }, []);
 
+  /* Close dropdown on outside click */
   useEffect(() => {
     function close(e) {
       if (
@@ -69,21 +76,22 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", close);
   }, [profileOpen]);
 
-  if (hideNavbar) return null;
+  if (hideNavbar || !profile) return null;
 
-  const name = profile?.name || "User";
+  const name = profile.name || "User";
   const initial = name.charAt(0).toUpperCase();
 
   const avatarSrc =
-    profile?.avatar && avatarMap[profile.avatar]
+    profile.avatar && avatarMap[profile.avatar]
       ? avatarMap[profile.avatar]
       : null;
 
-  const isAlumni = profile?.year === 5 || profile?.year === "alumni";
-  const displayYear = isAlumni ? "🎓 Alumni" : `Year: ${profile?.year}`;
+  const isAlumni = profile.year === 5 || profile.year === "alumni";
+  const displayYear = isAlumni ? "🎓 Alumni" : `Year: ${profile.year}`;
 
   return (
     <div style={styles.navbar}>
+      {/* LEFT */}
       <div style={styles.left}>
         <button
           style={styles.menuBtn}
@@ -111,8 +119,10 @@ export default function Navbar() {
         </button>
       </div>
 
+      {/* CENTER */}
       <div style={styles.center}>GuideU</div>
 
+      {/* RIGHT */}
       <div style={styles.right} ref={profileRef}>
         <div style={{ cursor: "pointer", marginRight: 12 }}>
           🔔 {notifications.filter(n => !n.read).length}
@@ -136,9 +146,14 @@ export default function Navbar() {
           )}
         </div>
 
-        {profileOpen && profile && (
+        {profileOpen && (
           <div style={styles.dropdown}>
-            <div onClick={() => setProfileOpen(false)} style={styles.closeBtn}>×</div>
+            <div
+              onClick={() => setProfileOpen(false)}
+              style={styles.closeBtn}
+            >
+              ×
+            </div>
 
             <div style={styles.userInfo}>
               <div style={{ position: "relative" }}>
@@ -154,23 +169,8 @@ export default function Navbar() {
                   )}
                 </div>
 
-                {/* ✏️ EDIT ICON */}
                 <div
-                  style={{
-                    position: "absolute",
-                    bottom: -2,
-                    right: -2,
-                    background: "#2563eb",
-                    color: "#fff",
-                    borderRadius: "50%",
-                    width: 22,
-                    height: 22,
-                    fontSize: 12,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer"
-                  }}
+                  style={styles.editIcon}
                   onClick={() => setEditAvatar(prev => !prev)}
                 >
                   ✏️
@@ -187,7 +187,7 @@ export default function Navbar() {
             </div>
 
             {editAvatar && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 12 }}>
+              <div style={styles.avatarGrid}>
                 {AVATAR_KEYS.map(key => (
                   <img
                     key={key}
@@ -198,11 +198,16 @@ export default function Navbar() {
                       height: 50,
                       borderRadius: "50%",
                       cursor: "pointer",
-                      border: profile.avatar === key ? "3px solid #2563eb" : "2px solid transparent"
+                      border:
+                        profile.avatar === key
+                          ? "3px solid #2563eb"
+                          : "2px solid transparent"
                     }}
                     onClick={async () => {
-                      await updateDoc(doc(db, "users", auth.currentUser.uid), { avatar: key });
-                      setProfile(prev => ({ ...prev, avatar: key }));
+                      await updateDoc(
+                        doc(db, "users", auth.currentUser.uid),
+                        { avatar: key }
+                      );
                       setEditAvatar(false);
                     }}
                   />
@@ -215,7 +220,7 @@ export default function Navbar() {
             <div style={{ fontSize: 14, lineHeight: "1.6" }}>
               📝 Questions Asked: {profile.questionsAsked || 0}<br />
               🪙 Coins: {profile.coins || 0}<br />
-              🔥 Daily Streak: {dailyStreak} days
+              🔥 Daily Streak: {profile.dailyStreak || 0} days
             </div>
 
             <div style={styles.divider} />
@@ -234,7 +239,9 @@ export default function Navbar() {
                     cursor: "pointer"
                   }}
                   onClick={async () => {
-                    await updateDoc(doc(db, "notifications", n.id), { read: true });
+                    await updateDoc(doc(db, "notifications", n.id), {
+                      read: true
+                    });
                     navigate(n.link);
                   }}
                 >
@@ -276,18 +283,9 @@ const styles = {
     zIndex: 9999,
     boxShadow: "0 1px 5px rgba(0,0,0,0.1)"
   },
-
-  left: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    marginLeft: 4
-  },
-
+  left: { display: "flex", alignItems: "center", gap: 10 },
   center: { fontWeight: 600 },
-
   right: { position: "relative" },
-
   menuBtn: {
     width: 40,
     height: 40,
@@ -295,24 +293,16 @@ const styles = {
     fontWeight: 800,
     background: "transparent",
     border: "none",
-    cursor: "pointer",
-    color: "#000",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    lineHeight: "1"
+    cursor: "pointer"
   },
-
   backBtn: {
     background: "#0ea5e9",
     color: "#fff",
     border: "none",
     padding: "6px 14px",
     borderRadius: 6,
-    cursor: "pointer",
-    height: 32
+    cursor: "pointer"
   },
-
   avatar: {
     width: 36,
     height: 36,
@@ -322,10 +312,8 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontWeight: 600,
     cursor: "pointer"
   },
-
   dropdown: {
     position: "absolute",
     right: 0,
@@ -336,19 +324,14 @@ const styles = {
     padding: 14,
     boxShadow: "0 10px 25px rgba(0,0,0,0.15)"
   },
-
   closeBtn: {
     position: "absolute",
     top: 8,
     right: 10,
     cursor: "pointer",
-    fontSize: 18,
-    fontWeight: 700,
-    color: "#444"
+    fontSize: 18
   },
-
   userInfo: { display: "flex", gap: 12 },
-
   avatarLarge: {
     width: 48,
     height: 48,
@@ -357,14 +340,30 @@ const styles = {
     color: "#fff",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    fontWeight: 700
+    justifyContent: "center"
   },
-
-  name: { fontWeight: 600 },
-  sub: { fontSize: 13, color: "#555" },
+  editIcon: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    background: "#2563eb",
+    color: "#fff",
+    borderRadius: "50%",
+    width: 22,
+    height: 22,
+    fontSize: 12,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer"
+  },
+  avatarGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3,1fr)",
+    gap: 10,
+    marginTop: 12
+  },
   divider: { height: 1, background: "#eee", margin: "12px 0" },
-
   logout: {
     marginTop: 6,
     padding: "8px",
