@@ -68,15 +68,16 @@ export default function Dashboard() {
             Explore
           </p>
 
-          <p
-            style={styles.item}
-            onClick={() => {
-              navigate("/ask-suggest");
-              toggleMenu();
-            }}
-          >
-            Ask / Suggest
-          </p>
+         <p
+  style={styles.item}
+  onClick={() => {
+    navigate("/ask-suggest");
+    toggleMenu();
+  }}
+>
+  Ask / Suggest
+</p>
+
 
           {/* 🚫 Restricted for Alumni */}
           {!isAlumni && (

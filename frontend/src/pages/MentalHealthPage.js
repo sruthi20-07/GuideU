@@ -6,11 +6,11 @@ export default function MentalHealthPage() {
   const [form, setForm] = useState({
     sleepHours: "",
     studyHours: "",
-    anxious: "",
-    productive: "",
+    anxious: "no",
+    productive: "yes",
     demotivating: "",
-    workload: "",
-    needHelp: "",
+    workload: "no",
+    needHelp: "no",
     notes: "",
     stressLevel: null,
     motivationLevel: null
@@ -19,6 +19,7 @@ export default function MentalHealthPage() {
   const [canEdit, setCanEdit] = useState(true);
   const [nextEditIn, setNextEditIn] = useState(0);
 
+  // 🔹 Load data & apply 24-hour lock
   useEffect(() => {
     const load = async () => {
       if (!auth.currentUser) return;
@@ -36,6 +37,7 @@ export default function MentalHealthPage() {
             (Date.now() - last.getTime()) / (1000 * 60 * 60 * 24)
           );
 
+          // ✅ 24 HOURS LOCK
           if (diffDays < 1) {
             setCanEdit(false);
             setNextEditIn(1 - diffDays);
@@ -50,6 +52,7 @@ export default function MentalHealthPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  // 🔹 Auto calculation
   const calculateLevels = () => {
     let stress = 1;
     let motivation = 5;
@@ -71,6 +74,7 @@ export default function MentalHealthPage() {
     };
   };
 
+  // 🔹 Save
   const saveCheckIn = async () => {
     const { stressLevel, motivationLevel } = calculateLevels();
 
@@ -87,12 +91,13 @@ export default function MentalHealthPage() {
 
     setForm(data);
     setCanEdit(false);
-    setNextEditIn(1);
+    setNextEditIn(1); // ✅ 24 hours
   };
 
   return (
     <div style={styles.page}>
       <div style={styles.card}>
+        {/* ✅ TITLE UPDATED */}
         <h2 style={styles.title}>WellBeing Check</h2>
 
         {!canEdit && (
@@ -117,9 +122,8 @@ export default function MentalHealthPage() {
           <p>Did you feel anxious today?</p>
           <select style={styles.input} name="anxious"
             disabled={!canEdit} value={form.anxious} onChange={handleChange}>
-            <option value="" disabled>Select</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
+            <option>yes</option>
+            <option>no</option>
           </select>
         </div>
 
@@ -127,19 +131,23 @@ export default function MentalHealthPage() {
           <p>Were you productive today?</p>
           <select style={styles.input} name="productive"
             disabled={!canEdit} value={form.productive} onChange={handleChange}>
-            <option value="" disabled>Select</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
+            <option>yes</option>
+            <option>no</option>
           </select>
+        </div>
+
+        <div style={styles.qBlock}>
+          <p>Is there anything that demotivates you?</p>
+          <input style={styles.input} type="text" name="demotivating"
+            disabled={!canEdit} value={form.demotivating} onChange={handleChange} />
         </div>
 
         <div style={styles.qBlock}>
           <p>Do you feel workload pressure?</p>
           <select style={styles.input} name="workload"
             disabled={!canEdit} value={form.workload} onChange={handleChange}>
-            <option value="" disabled>Select</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
+            <option>yes</option>
+            <option>no</option>
           </select>
         </div>
 
@@ -147,9 +155,8 @@ export default function MentalHealthPage() {
           <p>Do you feel you need someone to talk to?</p>
           <select style={styles.input} name="needHelp"
             disabled={!canEdit} value={form.needHelp} onChange={handleChange}>
-            <option value="" disabled>Select</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
+            <option>yes</option>
+            <option>no</option>
           </select>
         </div>
 
@@ -192,11 +199,46 @@ const styles = {
     width: 420,
     boxShadow: "0 10px 25px rgba(0,0,0,0.1)"
   },
-  title: { textAlign: "center", marginBottom: 10 },
-  lockText: { color: "red", textAlign: "center", marginBottom: 15 },
-  qBlock: { marginBottom: 15 },
-  input: { width: "100%", padding: 8, borderRadius: 6, border: "1px solid #ccc" },
-  textarea: { width: "100%", padding: 8, borderRadius: 6, border: "1px solid #ccc" },
-  button: { width: "100%", padding: 10, background: "#4f46e5", color: "#fff", border: "none", borderRadius: 6, fontSize: 16, cursor: "pointer", marginTop: 10 },
-  resultBox: { marginTop: 20, padding: 15, background: "#eef2ff", borderRadius: 8, textAlign: "center" }
+  title: {
+    textAlign: "center",
+    marginBottom: 10
+  },
+  lockText: {
+    color: "red",
+    textAlign: "center",
+    marginBottom: 15
+  },
+  qBlock: {
+    marginBottom: 15
+  },
+  input: {
+    width: "100%",
+    padding: 8,
+    borderRadius: 6,
+    border: "1px solid #ccc"
+  },
+  textarea: {
+    width: "100%",
+    padding: 8,
+    borderRadius: 6,
+    border: "1px solid #ccc"
+  },
+  button: {
+    width: "100%",
+    padding: 10,
+    background: "#4f46e5",
+    color: "#fff",
+    border: "none",
+    borderRadius: 6,
+    fontSize: 16,
+    cursor: "pointer",
+    marginTop: 10
+  },
+  resultBox: {
+    marginTop: 20,
+    padding: 15,
+    background: "#eef2ff",
+    borderRadius: 8,
+    textAlign: "center"
+  }
 };
