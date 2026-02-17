@@ -24,12 +24,11 @@ export default function Navbar() {
 
   const profileRef = useRef(null);
 
-  /* 🔹 Hide navbar on auth pages */
   const hideNavbar =
     location.pathname === "/login" ||
     location.pathname === "/register";
 
-  /* 🔥 REAL-TIME PROFILE LISTENER (FIX) */
+  /* 🔥 REAL-TIME PROFILE LISTENER */
   useEffect(() => {
     if (!auth.currentUser) return;
 
@@ -44,7 +43,7 @@ export default function Navbar() {
     return () => unsub();
   }, []);
 
-  /* 🔔 Notifications listener */
+  /* 🔔 Notifications */
   useEffect(() => {
   const unsubscribeAuth = auth.onAuthStateChanged(user => {
     if (!user) return;
@@ -67,7 +66,7 @@ export default function Navbar() {
 }, []);
 
 
-  /* Close dropdown on outside click */
+  /* Close dropdown */
   useEffect(() => {
     function close(e) {
       if (
@@ -93,7 +92,11 @@ export default function Navbar() {
       ? avatarMap[profile.avatar]
       : null;
 
-  const isAlumni = profile.year === 5 || profile.year === "alumni";
+  const isAlumni =
+    profile.year === 5 ||
+    profile.year === "alumni" ||
+    profile.year === "Alumni";
+
   const displayYear = isAlumni ? "🎓 Alumni" : `Year: ${profile.year}`;
 
   return (
@@ -166,6 +169,7 @@ export default function Navbar() {
               ×
             </div>
 
+            {/* USER INFO */}
             <div style={styles.userInfo}>
               <div style={{ position: "relative" }}>
                 <div style={styles.avatarLarge}>
@@ -197,6 +201,7 @@ export default function Navbar() {
               </div>
             </div>
 
+            {/* AVATAR EDIT GRID */}
             {editAvatar && (
               <div style={styles.avatarGrid}>
                 {AVATAR_KEYS.map(key => (
@@ -228,6 +233,7 @@ export default function Navbar() {
 
             <div style={styles.divider} />
 
+            {/* STATS */}
             <div style={{ fontSize: 14, lineHeight: "1.6" }}>
               📝 Questions Asked: {profile.questionsAsked || 0}<br />
               🪙 Coins: {profile.coins || 0}<br />
@@ -236,6 +242,51 @@ export default function Navbar() {
 
             <div style={styles.divider} />
 
+<<<<<<< HEAD
+=======
+            {/* ✅ ALUMNI EXPERIENCE LINK (ONLY FOR ALUMNI) */}
+            {isAlumni && (
+              <>
+                <div
+                  style={styles.menuItem}
+                  onClick={() => {
+                    setProfileOpen(false);
+                    navigate("/alumni");
+                  }}
+                >
+                  🎓 Alumni Experience
+                </div>
+                <div style={styles.divider} />
+              </>
+            )}
+
+            {/* NOTIFICATIONS */}
+            <div style={{ marginTop: 10 }}>
+              <b>Notifications</b>
+              {notifications.map(n => (
+                <div
+                  key={n.id}
+                  style={{
+                    fontSize: 13,
+                    padding: 6,
+                    background: n.read ? "#f3f4f6" : "#e0f2fe",
+                    marginTop: 6,
+                    borderRadius: 6,
+                    cursor: "pointer"
+                  }}
+                  onClick={async () => {
+                    await updateDoc(doc(db, "notifications", n.id), {
+                      read: true
+                    });
+                    navigate(n.link);
+                  }}
+                >
+                  {n.message}
+                </div>
+              ))}
+            </div>
+
+>>>>>>> dc960e092882e2bd386570b51552e052784e59d1
             <div style={styles.divider} />
 
             <div
@@ -350,6 +401,11 @@ const styles = {
     marginTop: 12
   },
   divider: { height: 1, background: "#eee", margin: "12px 0" },
+  menuItem: {
+    padding: "8px 6px",
+    cursor: "pointer",
+    borderRadius: 6
+  },
   logout: {
     marginTop: 6,
     padding: "8px",
