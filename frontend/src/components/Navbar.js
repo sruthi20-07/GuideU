@@ -242,51 +242,6 @@ export default function Navbar() {
 
             <div style={styles.divider} />
 
-<<<<<<< HEAD
-=======
-            {/* ✅ ALUMNI EXPERIENCE LINK (ONLY FOR ALUMNI) */}
-            {isAlumni && (
-              <>
-                <div
-                  style={styles.menuItem}
-                  onClick={() => {
-                    setProfileOpen(false);
-                    navigate("/alumni");
-                  }}
-                >
-                  🎓 Alumni Experience
-                </div>
-                <div style={styles.divider} />
-              </>
-            )}
-
-            {/* NOTIFICATIONS */}
-            <div style={{ marginTop: 10 }}>
-              <b>Notifications</b>
-              {notifications.map(n => (
-                <div
-                  key={n.id}
-                  style={{
-                    fontSize: 13,
-                    padding: 6,
-                    background: n.read ? "#f3f4f6" : "#e0f2fe",
-                    marginTop: 6,
-                    borderRadius: 6,
-                    cursor: "pointer"
-                  }}
-                  onClick={async () => {
-                    await updateDoc(doc(db, "notifications", n.id), {
-                      read: true
-                    });
-                    navigate(n.link);
-                  }}
-                >
-                  {n.message}
-                </div>
-              ))}
-            </div>
-
->>>>>>> dc960e092882e2bd386570b51552e052784e59d1
             <div style={styles.divider} />
 
             <div

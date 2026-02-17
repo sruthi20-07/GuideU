@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
 import Home from "./pages/Home";
@@ -13,17 +14,13 @@ import RoadmapPage from "./pages/RoadmapPage";
 import CareerDiscoveryPage from "./pages/CareerDiscoveryPage";
 import DailyTasksPage from "./pages/DailyTasksPage";
 import MentalHealthPage from "./pages/MentalHealthPage";
-<<<<<<< HEAD
 import NotificationsPage from "./components/Notifications";
-=======
-
-import AlumniExperiencePage from "./pages/AlumniExperiencePage";
-import AlumniStoriesPage from "./pages/AlumniStoriesPage";   // ✅ ADD THIS
-
->>>>>>> dc960e092882e2bd386570b51552e052784e59d1
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
 import { MenuContext } from "./context/MenuContext";
+import AlumniExperiencePage from "./pages/AlumniExperiencePage";
+import AlumniStoriesPage from "./pages/AlumniStoriesPage";
+
 
 /* ---------- Layout ---------- */
 function Layout({ children }) {
@@ -61,7 +58,6 @@ export default function App() {
             <Route path="/register" element={<Register />} />
 
             {/* PROTECTED ROUTES */}
-<<<<<<< HEAD
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />
@@ -75,16 +71,6 @@ export default function App() {
 } />
 
 
-=======
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
->>>>>>> dc960e092882e2bd386570b51552e052784e59d1
 
             <Route
               path="/ask-suggest"

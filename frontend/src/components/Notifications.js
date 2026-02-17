@@ -7,9 +7,9 @@ import {
   where,
   onSnapshot,
   doc,
-  updateDoc,
-  orderBy
+  updateDoc
 } from "firebase/firestore";
+
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
