@@ -3,6 +3,7 @@ import { useEffect, useState, useContext, useRef } from "react";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { MenuContext } from "../context/MenuContext";
+import Leaderboard from "../components/Leaderboard";
 
 export default function Dashboard() {
   const { menuOpen, toggleMenu } = useContext(MenuContext);
@@ -51,9 +52,10 @@ export default function Dashboard() {
               ...(activeView === "overview" && styles.activeItem)
             }}
             onClick={() => {
-              toggleMenu();
-              setTimeout(() => navigate("/explore"), 0);
-            }}
+  setActiveView("overview");
+  toggleMenu();
+}}
+
           >
             Overview
           </p>
@@ -77,6 +79,15 @@ export default function Dashboard() {
 >
   Ask / Suggest
 </p>
+<p
+  style={styles.item}
+  onClick={() => {
+    setActiveView("leaderboard");
+    toggleMenu();
+  }}
+>
+  🏆 Leaderboard
+</p>
 
 
           {/* 🚫 Restricted for Alumni */}
@@ -97,6 +108,7 @@ export default function Dashboard() {
               <p style={styles.item} onClick={() => { navigate("/wellbeing"); toggleMenu(); }}>
                 Wellbeing
               </p>
+
             </>
           )}
         </div>
@@ -107,6 +119,7 @@ export default function Dashboard() {
         {activeView === "overview" && (
           <>
             <h2>Welcome, {profile.name}</h2>
+
             <p style={styles.subtitle}>
               Your personal student guidance and career support platform
             </p>
@@ -120,7 +133,6 @@ export default function Dashboard() {
                 and direction.
               </p>
             </div>
-
             <div style={styles.cards}>
               <div style={styles.card}>
                 <h4>🎓 Career Guidance</h4>
@@ -154,6 +166,9 @@ export default function Dashboard() {
             </div>
           </>
         )}
+        {activeView === "leaderboard" && (
+    <Leaderboard />
+  )}
       </div>
     </div>
   );

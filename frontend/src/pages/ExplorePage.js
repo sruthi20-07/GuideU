@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
 import { db, auth } from "../firebase";
+import { handleVote } from "../utils/voteUtils";
 import {
   collection,
   getDocs,
-  query,
-  where,
   doc,
   updateDoc,
   arrayUnion,
-  arrayRemove,
   onSnapshot
 } from "firebase/firestore";
 import ProfileMenu from "../components/ProfileMenu";
@@ -78,7 +76,7 @@ export default function ExplorePage() {
     setAnswers(aSnap.docs.map(d => ({ id: d.id, ...d.data() })));
   };
 
-  const toggleLike = async (answer) => {
+  /*const toggleLike = async (answer) => {
     const ref = doc(db, "answers", answer.id);
     const liked = answer.likedBy?.includes(uid);
     const disliked = answer.dislikedBy?.includes(uid);
@@ -106,7 +104,7 @@ export default function ExplorePage() {
     });
 
     refreshAnswers();
-  };
+  };*/
 
   const addComment = async (answerId) => {
     if (!commentText[answerId]?.trim()) return;
@@ -165,10 +163,16 @@ export default function ExplorePage() {
               <p>{a.content}</p>
 
               <div style={{ fontSize: 14 }}>
-                <button onClick={() => toggleLike(a)}>👍 {a.likes || 0}</button>
-                &nbsp;&nbsp;
-                <button onClick={() => toggleDislike(a)}>👎 {a.dislikes || 0}</button>
-                &nbsp;&nbsp;
+                <button onClick={() => handleVote(a, "useful")}>
+  👍 {a.usefulCount || 0}
+</button>
+
+&nbsp;&nbsp;
+
+<button onClick={() => handleVote(a, "notUseful")}>
+  👎 {a.notUsefulCount || 0}
+</button>
+
                 <span
                   style={{ cursor: "pointer", color: "#2563eb" }}
                   onClick={() =>

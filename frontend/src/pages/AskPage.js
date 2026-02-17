@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
-
 import {
   collection,
   query,
@@ -9,11 +8,9 @@ import {
   serverTimestamp,
   doc,
   getDoc,
-  onSnapshot,
-  updateDoc,
-  getDocs
+  onSnapshot
 } from "firebase/firestore";
-
+import { getDocs } from "firebase/firestore";  
 import { useSearchParams } from "react-router-dom";
 import ProfileMenu from "../components/ProfileMenu";
 
@@ -28,36 +25,7 @@ const RESOURCES = [
 export default function AskPage() {
 
   /* ================== ONE-TIME DATA REPAIR ================== */
-  const repairMissingUsernames = async () => {
-    const qSnap = await getDocs(collection(db, "questions"));
-    const aSnap = await getDocs(collection(db, "answers"));
 
-    for (const d of qSnap.docs) {
-      const q = d.data();
-      if (!q.askedByName && q.askedById) {
-        const u = await getDoc(doc(db, "users", q.askedById));
-        if (u.exists()) {
-          await updateDoc(doc(db, "questions", d.id), {
-            askedByName: u.data().name
-          });
-        }
-      }
-    }
-
-    for (const d of aSnap.docs) {
-      const a = d.data();
-      if (!a.answeredByName && a.answeredById) {
-        const u = await getDoc(doc(db, "users", a.answeredById));
-        if (u.exists()) {
-          await updateDoc(doc(db, "answers", d.id), {
-            answeredByName: u.data().name
-          });
-        }
-      }
-    }
-
-    alert("Repair finished. Reload the page.");
-  };
 
   const [profile, setProfile] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -80,10 +48,10 @@ export default function AskPage() {
   };
 
   /* ================= DATA LOADER ================= */
+  useEffect(() => {
+  if (!myUid || !selectedBranch) return;
 
-  const loadData = async () => {
-    if (!myUid || !selectedBranch) return;
-
+  const load = async () => {
     const userSnap = await getDoc(doc(db, "users", myUid));
     setProfile(userSnap.data());
 
@@ -117,38 +85,140 @@ export default function AskPage() {
     };
   };
 
-  useEffect(() => {
-    let unsub = () => {};
-    loadData().then(u => (unsub = u));
-    return () => unsub();
-  }, [activeResource, selectedBranch, myUid]);
+  let unsub = () => {};
+  load().then(u => (unsub = u));
+
+  return () => unsub();
+}, [activeResource, selectedBranch, myUid]);
+useEffect(() => {
+  const questionId = params.get("question");
+  const answerId = params.get("answer");
+
+  setTimeout(() => {
+    if (questionId) {
+      const element = document.getElementById(questionId);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        // highlight
+        element.style.outline = "3px solid #facc15";
+        setTimeout(() => {
+          element.style.outline = "";
+        }, 2000);
+      }
+    }
+
+    if (answerId) {
+      const element = document.getElementById(answerId);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        element.style.outline = "3px solid #facc15";
+        setTimeout(() => {
+          element.style.outline = "";
+        }, 2000);
+      }
+    }
+  }, 300);
+
+}, [questions, answers, params]);
+
+
+
 
   /* ================= SUBMIT QUESTION ================= */
 
   const submitQuestion = async () => {
-    if (!desc.trim()) return;
+ if (!desc.trim()) return;
 
-    const newQuestion = {
-      content: desc,
-      askedById: myUid,
-      askedByName: profile.name,
-      askedByYear: profile.year,
-      branch: selectedBranch,
-      resourceType: activeResource,
-      isAnswered: false,
-      createdAt: serverTimestamp()
-    };
+if (!profile) {
+  alert("Please wait... profile loading.");
+  return;
+}
 
-    setQuestions(prev => [newQuestion, ...prev]);
-    await addDoc(collection(db, "questions"), newQuestion);
+if (!selectedBranch) {
+  alert("Branch not selected.");
+  return;
+}
 
-    setDesc("");
-    setSuccessMsg("✔ Question submitted successfully");
-    setTimeout(() => setSuccessMsg(""), 3000);
+
+
+  const newQuestion = {
+    content: desc,
+    askedById: myUid,
+    askedByName: profile.name,
+    askedByYear: profile.year,
+    branch: selectedBranch,
+    resourceType: activeResource,
+    isAnswered: false,
+    createdAt: serverTimestamp()
   };
 
-  if (!profile) return null;
+  const questionRef = await addDoc(
+    collection(db, "questions"),
+    newQuestion
+  );
 
+  const usersSnap = await getDocs(collection(db, "users"));
+
+ const normalizeYear = (year) => {
+  if (!year) return 0;
+
+  const y = year.toString().trim().toLowerCase();
+
+  if (y.includes("alumni")) return 5;
+  if (y.includes("1")) return 1;
+  if (y.includes("2")) return 2;
+  if (y.includes("3")) return 3;
+  if (y.includes("4")) return 4;
+
+  return 0;
+};
+
+const askerYear = normalizeYear(profile.year);
+
+for (const userDoc of usersSnap.docs) {
+  const userData = userDoc.data();
+
+  console.log("--------------");
+  console.log("User ID:", userDoc.id);
+  console.log("User Branch:", userData.branch);
+  console.log("Selected Branch:", selectedBranch);
+
+  const receiverYear = normalizeYear(userData.year);
+
+  if (
+  userDoc.id !== myUid &&
+  userData.branch &&
+  selectedBranch &&
+  userData.branch.trim().toLowerCase() ===
+    selectedBranch.trim().toLowerCase() &&
+  receiverYear > askerYear
+)
+ {
+    await addDoc(collection(db, "notifications"), {
+      userId: userDoc.id,
+      message: `A question was asked in ${selectedBranch} Branch - ${profile.year}`,
+      type: "question",
+      branch: selectedBranch,
+      questionId: questionRef.id,
+      answerId: null,
+      isRead: false,
+      createdAt: serverTimestamp()
+    });
+  }
+}
+
+
+
+
+  setDesc("");
+  setSuccessMsg("✔ Question submitted successfully");
+  setTimeout(() => setSuccessMsg(""), 3000);
+};
+
+
+ if (!profile || !selectedBranch) return null;
   const normalizedSearch = search.trim().toLowerCase();
 
   const visible = questions
@@ -197,27 +267,35 @@ export default function AskPage() {
         const isMine = q.askedById === myUid;
 
         return (
-          <div key={q.id} style={{ background: "white", padding: 14, borderRadius: 10, marginBottom: 14 }}>
+          <div
+  id={q.id}
+  key={q.id}
+  style={{ background: "white", padding: 14, borderRadius: 10, marginBottom: 14 }}
+>
+
             <b>{q.content}</b>
 
             <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>
-              Asked by <b>{q.askedByName}</b> — 
-              {q.askedByYear === 5 ? " Alumni" : ` Year ${q.askedByYear}`} •{" "}
-              {formatTime(q.createdAt)}
-            </div>
+  Posted anonymously • {formatTime(q.createdAt)}
+</div>
+
 
             {qAnswers.length === 0 && isMine && (
               <div style={{ color: "#f59e0b", fontSize: 13 }}>⏳ Waiting for answer</div>
             )}
 
             {qAnswers.map(a => (
-              <div key={a.id} style={{ background: "#f3f4f6", padding: 8, borderRadius: 8, marginTop: 6 }}>
+              <div
+  id={a.id}
+  key={a.id}
+  style={{ background: "#f3f4f6", padding: 8, borderRadius: 8, marginTop: 6 }}
+>
+
                 {a.content}
                 <div style={{ fontSize: 12 }}>
-                  Answered by <b>{a.answeredByName}</b> — 
-                  {a.answeredByYear === 5 ? " Alumni" : ` Year ${a.answeredByYear}`} •{" "}
-                  {formatTime(a.createdAt)}
-                </div>
+  Answered anonymously • {formatTime(a.createdAt)}
+</div>
+
               </div>
             ))}
           </div>

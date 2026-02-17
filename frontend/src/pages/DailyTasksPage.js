@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { auth, db } from "../firebase";
 import {
   doc,
@@ -7,6 +7,7 @@ import {
   updateDoc,
   serverTimestamp
 } from "firebase/firestore";
+
 
 export default function DailyTasksPage() {
   const [tasks, setTasks] = useState([]);
@@ -17,6 +18,16 @@ export default function DailyTasksPage() {
 
   const uid = auth.currentUser?.uid;
   const today = new Date().toISOString().slice(0, 10);
+/* 🔹 SAVE HELPER (🔥 FIXED) */
+  const save = useCallback(async (tasksData, streakVal, lastDate) => {
+  await setDoc(doc(db, "dailyTasks", uid), {
+    tasks: tasksData,
+    streak: streakVal,
+    lastCompletedDate: lastDate ?? null,
+    date: today,
+    updatedAt: serverTimestamp()
+  });
+}, [uid, today]);
 
   /* 🔹 LOAD DATA */
   useEffect(() => {
@@ -50,19 +61,7 @@ export default function DailyTasksPage() {
     };
 
     load();
-  }, [uid]);
-
-  /* 🔹 SAVE HELPER (🔥 FIXED) */
-  const save = async (tasksData, streakVal, lastDate) => {
-    await setDoc(doc(db, "dailyTasks", uid), {
-      tasks: tasksData,
-      streak: streakVal,
-      lastCompletedDate: lastDate ?? null, // ✅ NEVER undefined
-      date: today,
-      updatedAt: serverTimestamp()
-    });
-  };
-
+  }, [uid, today, save]);
   /* 🔹 ADD TASK */
   const addTask = async () => {
     if (!newTask.trim()) return;

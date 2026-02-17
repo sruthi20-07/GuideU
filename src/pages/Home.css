@@ -5,7 +5,7 @@
 }
 
 body {
-  overflow: hidden; /* 🚫 NO SCROLL */
+  overflow: hidden;
   font-family: "Segoe UI", sans-serif;
 }
 
@@ -30,7 +30,7 @@ body {
   overflow: hidden;
 }
 
-/* CURVED BLUE SHAPES */
+/* CURVES */
 .home-card::before,
 .home-card::after {
   content: "";
@@ -102,7 +102,7 @@ body {
   cursor: pointer;
 }
 
-/* HERO SECTION */
+/* HERO */
 .hero {
   height: calc(100% - 70px);
   display: flex;
@@ -113,12 +113,10 @@ body {
   z-index: 2;
 }
 
-/* LEFT IMAGE */
 .hero-left img {
   width: 360px;
 }
 
-/* RIGHT CONTENT */
 .hero-right {
   max-width: 420px;
 }
@@ -159,8 +157,4 @@ body {
   border-radius: 30px;
   font-size: 15px;
   cursor: pointer;
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> main

@@ -13,7 +13,7 @@ import RoadmapPage from "./pages/RoadmapPage";
 import CareerDiscoveryPage from "./pages/CareerDiscoveryPage";
 import DailyTasksPage from "./pages/DailyTasksPage";
 import MentalHealthPage from "./pages/MentalHealthPage";
-
+import NotificationsPage from "./components/Notifications";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
 import { MenuContext } from "./context/MenuContext";
@@ -59,6 +59,14 @@ export default function App() {
                 <Dashboard />
               </ProtectedRoute>
             } />
+<Route path="/notifications" element={<NotificationsPage />} />
+<Route path="/ask/:questionId" element={
+  <ProtectedRoute>
+    <AskPage />
+  </ProtectedRoute>
+} />
+
+
 
             <Route path="/ask-suggest" element={
               <ProtectedRoute>

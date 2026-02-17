@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { auth, db } from "../firebase";
 import {
   collection,
@@ -8,9 +8,7 @@ import {
   doc,
   getDoc,
   query,
-  orderBy,
-  updateDoc,
-  getDocs
+  orderBy
 } from "firebase/firestore";
 import { useSearchParams } from "react-router-dom";
 import ProfileMenu from "../components/ProfileMenu";
@@ -61,8 +59,14 @@ export default function SuggestPage() {
   const userYear = profile?.year === "alumni" ? 5 : Number(profile?.year);
   const maxYear = userYear ? userYear - 1 : 0;
 
-  const years = [];
-  for (let y = 1; y <= maxYear; y++) years.push(y);
+  const years = useMemo(() => {
+  const arr = [];
+  for (let y = 1; y <= maxYear; y++) {
+    arr.push(y);
+  }
+  return arr;
+}, [maxYear]);
+
 
   useEffect(() => {
     if (years.length && !activeYear) setActiveYear(years[0]);
@@ -72,54 +76,43 @@ export default function SuggestPage() {
 
   /* ================= SUBMIT ANSWER ================= */
   const submitAnswer = async (qid) => {
-    if (!answerText[qid]?.trim()) {
-      alert("Please write an answer");
-      return;
-    }
+  if (!answerText[qid]?.trim()) {
+    alert("Please write an answer");
+    return;
+  }
 
-    await addDoc(collection(db, "answers"), {
-      questionId: qid,
-      content: answerText[qid],
-      answeredById: auth.currentUser.uid,
-      answeredByName: profile.name,
-      answeredByYear: userYear,
-      createdAt: serverTimestamp()
-    });
+  // ✅ Save answer and get reference
+  const answerRef = await addDoc(collection(db, "answers"), {
+    questionId: qid,
+    content: answerText[qid],
+    answeredById: auth.currentUser.uid,
+    answeredByYear: userYear,
+    usefulCount: 0,
+    notUsefulCount: 0,
+    createdAt: serverTimestamp()
+  });
 
-    setAnswerText({ ...answerText, [qid]: "" });
-  };
+  // 🔔 Notify question owner
+  // 🔔 Notify ONLY question owner
+const questionDoc = await getDoc(doc(db, "questions", qid));
+const questionData = questionDoc.data();
 
-  /* ================= DATA REPAIR (RUN ONCE) ================= */
-  const repairNames = async () => {
-    const qSnap = await getDocs(collection(db, "questions"));
-    const aSnap = await getDocs(collection(db, "answers"));
+if (questionData.askedById !== auth.currentUser.uid) {
+  await addDoc(collection(db, "notifications"), {
+    userId: questionData.askedById,  // ✅ ONLY owner
+    message: `Your question from ${questionData.branch} Branch - ${questionData.askedByYear} Year was answered`,
+    type: "answer",
+    branch: questionData.branch,
+    questionId: qid,
+    answerId: answerRef.id,
+    isRead: false,
+    createdAt: serverTimestamp()
+  });
+}
+  setAnswerText({ ...answerText, [qid]: "" });
+};
 
-    for (const d of qSnap.docs) {
-      const q = d.data();
-      if (!q.askedByName && q.askedById) {
-        const u = await getDoc(doc(db, "users", q.askedById));
-        if (u.exists()) {
-          await updateDoc(doc(db, "questions", d.id), {
-            askedByName: u.data().name
-          });
-        }
-      }
-    }
 
-    for (const d of aSnap.docs) {
-      const a = d.data();
-      if (!a.answeredByName && a.answeredById) {
-        const u = await getDoc(doc(db, "users", a.answeredById));
-        if (u.exists()) {
-          await updateDoc(doc(db, "answers", d.id), {
-            answeredByName: u.data().name
-          });
-        }
-      }
-    }
-
-    alert("Repair complete. Reload the page.");
-  };
 
   /* ================= FILTER QUESTIONS ================= */
   const yearQuestions = questions.filter(
@@ -230,8 +223,10 @@ export default function SuggestPage() {
 
           {answered.map(q => (
             <div
-              key={q.id}
-              style={{
+  id={q.id}   // 🔥 ADD THIS
+  key={q.id}
+  style={{
+
                 background: "#f0fdf4",
                 padding: 12,
                 borderRadius: 10,
@@ -240,19 +235,24 @@ export default function SuggestPage() {
             >
              <div style={{ fontWeight: 600 }}>{q.content}</div>
 <div style={{ fontSize: 12, color: "#6b7280" }}>
-  Asked by: {q.askedByName} — {q.askedByYear === 5 ? "Alumni" : `Year ${q.askedByYear}`} •{" "}
-  {q.createdAt?.toDate().toLocaleString()}
+  Posted anonymously • {q.createdAt?.toDate().toLocaleString()}
 </div>
+
 
               {answers
   .filter(a => a.questionId === q.id)
   .map(a => (
-    <div key={a.id} style={{ background: "#ecfeff", padding: 8, borderRadius: 8, marginTop: 6 }}>
+    <div
+  id={a.id}   // 🔥 ADD THIS
+  key={a.id}
+  style={{ background: "#ecfeff", padding: 8, borderRadius: 8, marginTop: 6 }}
+>
+
       {a.content}
       <div style={{ fontSize: 12, marginTop: 4 }}>
-        Answered by: {a.answeredByName} — {a.answeredByYear === 5 ? "Alumni" : `Year ${a.answeredByYear}`} •{" "}
-        {a.createdAt?.toDate().toLocaleString()}
-      </div>
+  Answered anonymously • {a.createdAt?.toDate().toLocaleString()}
+</div>
+
     </div>
 ))}
 

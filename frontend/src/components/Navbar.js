@@ -46,19 +46,26 @@ export default function Navbar() {
 
   /* 🔔 Notifications listener */
   useEffect(() => {
-    if (!auth.currentUser) return;
+  const unsubscribeAuth = auth.onAuthStateChanged(user => {
+    if (!user) return;
 
     const q = query(
       collection(db, "notifications"),
-      where("userId", "==", auth.currentUser.uid)
+      where("userId", "==", user.uid)
     );
 
-    const unsub = onSnapshot(q, snap => {
-      setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    const unsubscribeNotifications = onSnapshot(q, snap => {
+      setNotifications(
+        snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      );
     });
 
-    return () => unsub();
-  }, []);
+    return () => unsubscribeNotifications();
+  });
+
+  return () => unsubscribeAuth();
+}, []);
+
 
   /* Close dropdown on outside click */
   useEffect(() => {
@@ -124,9 +131,13 @@ export default function Navbar() {
 
       {/* RIGHT */}
       <div style={styles.right} ref={profileRef}>
-        <div style={{ cursor: "pointer", marginRight: 12 }}>
-          🔔 {notifications.filter(n => !n.read).length}
-        </div>
+        <div
+  style={{ cursor: "pointer", marginRight: 12 }}
+  onClick={() => navigate("/notifications")}
+>
+  🔔 {notifications.filter(n => !n.isRead).length}
+</div>
+
 
         <div
           style={styles.avatar}
@@ -224,31 +235,6 @@ export default function Navbar() {
             </div>
 
             <div style={styles.divider} />
-
-            <div style={{ marginTop: 10 }}>
-              <b>Notifications</b>
-              {notifications.map(n => (
-                <div
-                  key={n.id}
-                  style={{
-                    fontSize: 13,
-                    padding: 6,
-                    background: n.read ? "#f3f4f6" : "#e0f2fe",
-                    marginTop: 6,
-                    borderRadius: 6,
-                    cursor: "pointer"
-                  }}
-                  onClick={async () => {
-                    await updateDoc(doc(db, "notifications", n.id), {
-                      read: true
-                    });
-                    navigate(n.link);
-                  }}
-                >
-                  {n.message}
-                </div>
-              ))}
-            </div>
 
             <div style={styles.divider} />
 
