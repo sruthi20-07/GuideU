@@ -1,298 +1,158 @@
-import { useEffect, useState } from "react";
-import { auth, db } from "../firebase";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { useState, useEffect } from "react";
+import { FaCheckCircle } from "react-icons/fa";
 
-/* Normalize text */
-const normalize = (text) =>
-  text.toLowerCase().replace(/[^a-z0-9]/g, "");
-
-/* Known interest keywords */
-const interestKeywords = {
-  software: ["c", "cprogramming", "java", "python"],
-  web: ["html", "css", "javascript", "react", "reactjs"],
-  backend: ["spring", "springboot", "node", "express"],
-  data: ["data", "sql", "analytics"],
-  ai: ["ai", "ml", "machinelearning"],
-  cloud: ["cloud", "aws", "devops"]
-};
-
-/* Topics for known categories */
-const categoryTopics = {
-  software: [
-    "Programming Fundamentals",
-    "Control Structures",
-    "Functions & Modular Coding",
-    "Problem Solving Practice"
+// Topics with steps
+const topicsData = {
+  java: [
+    { step: "Getting Started with Java", details: [
+        { text: "Install JDK", link: "https://www.oracle.com/java/technologies/javase-jdk11-downloads.html" },
+        { text: "Set up IDE", link: "https://www.jetbrains.com/idea/download/" },
+        { text: "Hello World program", link: "https://www.geeksforgeeks.org/hello-world-in-java/" }
+      ] },
+    { step: "Variables & Datatypes", details: [
+        { text: "int, float, double, char", link: "https://www.w3schools.com/java/java_variables.asp" },
+        { text: "String basics", link: "https://www.geeksforgeeks.org/strings-in-java/" },
+        { text: "Type conversion", link: "https://www.geeksforgeeks.org/type-conversion-in-java/" }
+      ] },
+    { step: "Operators", details: [
+        { text: "Arithmetic operators", link: "https://www.w3schools.com/java/java_operators.asp" },
+        { text: "Logical operators", link: "https://www.geeksforgeeks.org/logical-operators-in-java/" },
+        { text: "Comparison operators", link: "https://www.geeksforgeeks.org/comparison-operators-in-java/" }
+      ] },
+    { step: "Control Flow", details: [
+        { text: "if-else statements", link: "https://www.w3schools.com/java/java_conditions.asp" },
+        { text: "switch-case", link: "https://www.javatpoint.com/java-switch" },
+        { text: "loops", link: "https://www.w3schools.com/java/java_for_loop.asp" }
+      ] },
   ],
-  web: [
-    "HTML & CSS",
-    "JavaScript Basics",
-    "React Fundamentals",
-    "Frontend Best Practices"
-  ],
-  backend: [
-    "Spring Boot Basics",
-    "REST APIs",
-    "Backend Architecture"
-  ],
-  data: [
-    "SQL Fundamentals",
-    "Data Analysis",
-    "Data Visualization"
-  ],
-  ai: [
-    "Python for AI",
-    "Statistics",
-    "Machine Learning Basics"
-  ],
-  cloud: [
-    "Cloud Fundamentals",
-    "Deployment Basics",
-    "DevOps Concepts"
+  python: [
+    { step: "Getting Started with Python", details: [
+        { text: "Install Python", link: "https://www.python.org/downloads/" },
+        { text: "Set up IDE", link: "https://www.jetbrains.com/pycharm/download/" },
+        { text: "Hello World", link: "https://www.w3schools.com/python/python_intro.asp" }
+      ] },
+    { step: "Variables & Data Types", details: [
+        { text: "Numbers, Strings, Lists, Tuples", link: "https://www.w3schools.com/python/python_datatypes.asp" },
+        { text: "Type conversion", link: "https://www.w3schools.com/python/python_casting.asp" }
+      ] },
+    { step: "Control Flow", details: [
+        { text: "if-else statements", link: "https://www.w3schools.com/python/python_conditions.asp" },
+        { text: "Loops", link: "https://www.w3schools.com/python/python_for_loops.asp" }
+      ] },
   ]
 };
 
-/* Detect categories */
-const detectCategories = (interestList) => {
-  const categories = new Set();
-
-  interestList.forEach(word => {
-    const w = normalize(word);
-    for (let cat in interestKeywords) {
-      interestKeywords[cat].forEach(k => {
-        if (w.includes(k) || k.includes(w)) {
-          categories.add(cat);
-        }
-      });
-    }
-  });
-
-  return [...categories];
-};
-
-/* Validate interest */
-const isMeaningfulInterest = (interest) => {
-  const cleaned = interest.toLowerCase().trim();
-
-  if (cleaned.length < 3) return false;
-
-  const invalidWords = ["language", "technology", "tech", "skill", "course"];
-  if (invalidWords.includes(cleaned)) return false;
-
-  const parts = cleaned.split(" ");
-  if (parts.length === 2 && parts[0].length === 1 && parts[1] === "language") {
-    return false;
-  }
-
-  return true;
-};
-
-/* Generic roadmap */
-const buildGenericRoadmap = (interest) => [
-  `Introduction to ${interest}`,
-  `Fundamentals of ${interest}`,
-  `Core Concepts in ${interest}`,
-  `Hands-on Practice with ${interest}`,
-  `Mini Projects using ${interest}`,
-  `Advanced Topics in ${interest}`
-];
-
 export default function RoadmapPage() {
-  const [profile, setProfile] = useState(null);
-  const [roadmap, setRoadmap] = useState(null);
-
-  const [interests, setInterests] = useState("");
-  const [hours, setHours] = useState(10);
-  const [error, setError] = useState("");
+  const [topic, setTopic] = useState("");
+  const [hours, setHours] = useState(5);
+  const [roadmap, setRoadmap] = useState([]);
+  const [completed, setCompleted] = useState({});
 
   useEffect(() => {
-    const load = async () => {
-      if (!auth.currentUser) return;
-
-      const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
-      if (userSnap.exists()) setProfile(userSnap.data());
-
-      const rmSnap = await getDoc(doc(db, "roadmaps", auth.currentUser.uid));
-      if (rmSnap.exists()) {
-        const data = rmSnap.data();
-        setRoadmap({ ...data, flowchartTopics: data.flowchartTopics || [] });
-      }
-    };
-    load();
+    setRoadmap([]);
+    setCompleted({});
+    setTopic("");
+    setHours(5);
   }, []);
 
-  const generateRoadmap = async () => {
-    setError("");
-
-    const rawInterests = interests
-      .split(",")
-      .map(i => i.trim())
-      .filter(Boolean);
-
-    if (rawInterests.length === 0) {
-      setError("Please enter at least one interest.");
-      return;
-    }
-
-    const categories = detectCategories(rawInterests);
-    let flowTopics = [];
-
-    categories.forEach(cat => {
-      if (categoryTopics[cat]) {
-        flowTopics.push(...categoryTopics[cat]);
-      }
-    });
-
-    rawInterests.forEach(interest => {
-      const norm = normalize(interest);
-      const matched = Object.values(interestKeywords)
-        .flat()
-        .some(k => norm.includes(k) || k.includes(norm));
-
-      if (!matched && isMeaningfulInterest(interest)) {
-        flowTopics.push(...buildGenericRoadmap(interest));
-      }
-    });
-
-    flowTopics = [...new Set(flowTopics)];
-
-    if (flowTopics.length === 0) {
-      setError("Please enter a valid technology or domain.");
-      return;
-    }
-
-    if (hours < 7) flowTopics = flowTopics.slice(0, 4);
-    if (hours >= 12) flowTopics.push("Advanced Practice Projects");
-
-    const data = {
-      interests: rawInterests,
-      flowchartTopics: flowTopics,
-      lastGenerated: serverTimestamp()
-    };
-
-    await setDoc(doc(db, "roadmaps", auth.currentUser.uid), data);
-    setRoadmap(data);
+  const handleGenerate = () => {
+    if (!topic) return alert("Please select a topic!");
+    const steps = topicsData[topic.toLowerCase()];
+    if (!steps) return alert("Topic not available!");
+    setRoadmap(steps.slice(0, hours));
+    setCompleted({});
   };
 
-  // ENTER key handler
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      generateRoadmap();
+  const toggleStep = (index) => {
+    const newCompleted = { ...completed };
+    
+    // Only allow marking the current step if previous steps are completed
+    if (index === 0 || completed[index - 1]) {
+      newCompleted[index] = !completed[index];
+      setCompleted(newCompleted);
+    }
+
+    // Congrats popup after all completed
+    if (roadmap.length > 0 && Object.values(newCompleted).length === roadmap.length &&
+        Object.values(newCompleted).every((v) => v === true)) {
+      setTimeout(() => alert("🎉 Congratulations! You have completed the roadmap!"), 200);
     }
   };
-
-  if (!profile) return null;
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>Interest-Based Roadmap</h2>
+    <div style={{ padding: 20, maxWidth: 800, margin: "auto" }}>
+      <h1 style={{ fontSize: 28, fontWeight: "bold", marginBottom: 20 }}>AI Roadmap Generator</h1>
 
-        <div style={styles.formGroup}>
-          <label>Your Interests</label>
-          <input
-            style={styles.input}
-            placeholder="C programming, Java, Blockchain, UI UX"
-            value={interests}
-            onChange={e => setInterests(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
-        </div>
+      <div style={{ display: "flex", gap: 10, marginBottom: 30 }}>
+        <select value={topic} onChange={(e) => setTopic(e.target.value)} style={{ padding: 8, flex: 1 }}>
+          <option value="">Select Topic</option>
+          {Object.keys(topicsData).map((t) => (
+            <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+          ))}
+        </select>
 
-        <div style={styles.formGroup}>
-          <label>Available Hours / Week</label>
-          <input
-            type="number"
-            style={styles.input}
-            value={hours}
-            onChange={e => setHours(Number(e.target.value))}
-          />
-        </div>
+        <select value={hours} onChange={(e) => setHours(Number(e.target.value))} style={{ padding: 8 }}>
+          {[...Array(8)].map((_, i) => (
+            <option key={i} value={i + 1}>{i + 1} {i === 0 ? "hour" : "hours"}</option>
+          ))}
+        </select>
 
-        {error && <p style={{ color: "red" }}>{error}</p>}
-
-        <button style={styles.button} onClick={generateRoadmap}>
-          Generate Flowchart
-        </button>
+        <button onClick={handleGenerate} style={{ padding: "8px 16px" }}>Generate Roadmap</button>
       </div>
 
-      {roadmap && roadmap.flowchartTopics.length > 0 && (
-        <div style={styles.roadmapSection}>
-          <h3>Your Learning Flowchart</h3>
+      {/* Vertical roadmap */}
+      <div style={{ position: "relative", marginLeft: 40 }}>
+        {roadmap.map((step, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "flex-start", marginBottom: 50, position: "relative" }}>
+            
+            {/* Connector line */}
+            {i !== roadmap.length - 1 && (
+              <div style={{
+                position: "absolute",
+                top: 30,
+                left: 12,
+                width: 4,
+                height: 50,
+                backgroundColor: completed[i] ? "green" : "#ccc",
+                transition: "background-color 0.3s"
+              }} />
+            )}
 
-          {roadmap.flowchartTopics.map((topic, index) => (
-            <div key={index} style={{ textAlign: "center" }}>
-              <div style={styles.flowBox}>{topic}</div>
-              {index !== roadmap.flowchartTopics.length - 1 && (
-                <div style={styles.arrow}>↓</div>
-              )}
+            {/* Step circle */}
+            <div onClick={() => toggleStep(i)} style={{
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              backgroundColor: completed[i] ? "green" : "#3b82f6",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#fff",
+              fontWeight: "bold",
+              cursor: "pointer",
+              zIndex: 2
+            }}>
+              {completed[i] ? <FaCheckCircle /> : i + 1}
             </div>
-          ))}
-        </div>
-      )}
+
+            {/* Step card */}
+            <div style={{
+              backgroundColor: "#f9f9f9",
+              padding: 16,
+              borderRadius: 6,
+              marginLeft: 20,
+              flex: 1
+            }}>
+              <h2 style={{ margin: "0 0 8px 0" }}>{step.step}</h2>
+              <ul style={{ margin: 0, paddingLeft: 20 }}>
+                {step.details.map((d, idx) => (
+                  <li key={idx}><a href={d.link} target="_blank" rel="noopener noreferrer">{d.text}</a></li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
-
-/* Styles */
-const styles = {
-  page: {
-    minHeight: "100vh",
-    background: "#f2f6fc",
-    padding: 24
-  },
-  card: {
-    maxWidth: 600,
-    margin: "auto",
-    background: "#fff",
-    padding: 30,
-    borderRadius: 14,
-    boxShadow: "0 10px 25px rgba(0,0,0,0.1)"
-  },
-  title: {
-    textAlign: "center",
-    marginBottom: 20
-  },
-  formGroup: {
-    marginBottom: 14
-  },
-  input: {
-    width: "100%",
-    padding: 10,
-    marginTop: 4,
-    borderRadius: 8,
-    border: "1px solid #ccc"
-  },
-  button: {
-    width: "100%",
-    padding: 12,
-    background: "#4f46e5",
-    color: "#fff",
-    border: "none",
-    borderRadius: 8,
-    fontSize: 16,
-    cursor: "pointer",
-    marginTop: 10
-  },
-  roadmapSection: {
-    maxWidth: 700,
-    margin: "30px auto",
-    background: "#fff",
-    padding: 20,
-    borderRadius: 14,
-    boxShadow: "0 5px 15px rgba(0,0,0,0.08)"
-  },
-  flowBox: {
-    padding: "12px 16px",
-    background: "#eef2ff",
-    borderRadius: 10,
-    fontWeight: 600,
-    marginTop: 10
-  },
-  arrow: {
-    fontSize: 22,
-    margin: "6px 0",
-    color: "#4f46e5"
-  }
-};
