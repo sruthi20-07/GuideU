@@ -3,6 +3,8 @@ import { useEffect, useState, useContext, useRef } from "react";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { MenuContext } from "../context/MenuContext";
+import Leaderboard from "../components/Leaderboard";
+
 
 export default function Dashboard() {
   const { menuOpen, toggleMenu } = useContext(MenuContext);
@@ -11,19 +13,21 @@ export default function Dashboard() {
   const menuRef = useRef(null);
   const navigate = useNavigate();
 
-  /* Load user profile */
+  /* 🔹 Load user profile */
   useEffect(() => {
     if (!auth.currentUser) return;
 
     const load = async () => {
       const snap = await getDoc(doc(db, "users", auth.currentUser.uid));
-      setProfile(snap.data());
+      if (snap.exists()) {
+        setProfile(snap.data());
+      }
     };
 
     load();
   }, []);
 
-  /* Close menu when clicking outside */
+  /* 🔹 Close menu on outside click */
   useEffect(() => {
     function handleOutsideClick(e) {
       if (menuOpen && menuRef.current && !menuRef.current.contains(e.target)) {
@@ -37,23 +41,25 @@ export default function Dashboard() {
 
   if (!profile) return <div style={{ padding: 30 }}>Loading...</div>;
 
-  // 🧠 Alumni role logic
-  const isAlumni = profile.year === 5 || profile.year === "alumni";
+  /* 🔥 Strong Alumni Detection */
+  const normalizedYear = String(profile.year).toLowerCase();
+  const isAlumni =
+    normalizedYear.includes("alumni") ||
+    normalizedYear.includes("5");
 
   return (
     <div style={styles.page}>
       {/* SIDE MENU */}
       {menuOpen && (
         <div ref={menuRef} style={styles.sideMenu}>
+          
           <p
-            style={{
-              ...styles.item,
-              ...(activeView === "overview" && styles.activeItem)
-            }}
+            style={styles.item}
             onClick={() => {
-              toggleMenu();
-              setTimeout(() => navigate("/explore"), 0);
-            }}
+  setActiveView("overview");
+  toggleMenu();
+}}
+
           >
             Overview
           </p>
@@ -77,26 +83,82 @@ export default function Dashboard() {
 >
   Ask / Suggest
 </p>
+<p
+  style={styles.item}
+  onClick={() => {
+    setActiveView("leaderboard");
+    toggleMenu();
+  }}
+>
+  🏆 Leaderboard
+</p>
 
+          {/* 🎓 Alumni Section */}
+          {isAlumni ? (
+            <p
+              style={{ ...styles.item, color: "#2563eb", fontWeight: 600 }}
+              onClick={() => {
+                navigate("/alumni");
+                toggleMenu();
+              }}
+            >
+              🎓 Alumni Experience
+            </p>
+          ) : (
+            <p
+              style={{ ...styles.item, color: "#2563eb" }}
+              onClick={() => {
+                navigate("/alumni-stories");
+                toggleMenu();
+              }}
+            >
+              🎓 Alumni Stories
+            </p>
+          )}
 
-          {/* 🚫 Restricted for Alumni */}
+          {/* 🚫 Hidden for Alumni */}
           {!isAlumni && (
             <>
-              <p style={styles.item} onClick={() => { navigate("/roadmap"); toggleMenu(); }}>
+              <p
+                style={styles.item}
+                onClick={() => {
+                  navigate("/roadmap");
+                  toggleMenu();
+                }}
+              >
                 Roadmap
               </p>
 
-              <p style={styles.item} onClick={() => { navigate("/career"); toggleMenu(); }}>
+              <p
+                style={styles.item}
+                onClick={() => {
+                  navigate("/career");
+                  toggleMenu();
+                }}
+              >
                 Career Discovery
               </p>
 
-              <p style={styles.item} onClick={() => { navigate("/tasks"); toggleMenu(); }}>
+              <p
+                style={styles.item}
+                onClick={() => {
+                  navigate("/tasks");
+                  toggleMenu();
+                }}
+              >
                 Daily Tasks
               </p>
 
-              <p style={styles.item} onClick={() => { navigate("/wellbeing"); toggleMenu(); }}>
+              <p
+                style={styles.item}
+                onClick={() => {
+                  navigate("/wellbeing");
+                  toggleMenu();
+                }}
+              >
                 Wellbeing
               </p>
+
             </>
           )}
         </div>
@@ -107,6 +169,7 @@ export default function Dashboard() {
         {activeView === "overview" && (
           <>
             <h2>Welcome, {profile.name}</h2>
+
             <p style={styles.subtitle}>
               Your personal student guidance and career support platform
             </p>
@@ -120,7 +183,6 @@ export default function Dashboard() {
                 and direction.
               </p>
             </div>
-
             <div style={styles.cards}>
               <div style={styles.card}>
                 <h4>🎓 Career Guidance</h4>
@@ -154,6 +216,9 @@ export default function Dashboard() {
             </div>
           </>
         )}
+        {activeView === "leaderboard" && (
+    <Leaderboard />
+  )}
       </div>
     </div>
   );
@@ -172,6 +237,15 @@ const styles = {
   subtitle: {
     color: "#555",
     marginBottom: 18
+  },
+  alumniBadge: {
+    background: "#e0f2fe",
+    color: "#0369a1",
+    padding: "6px 12px",
+    borderRadius: 8,
+    display: "inline-block",
+    marginBottom: 12,
+    fontWeight: 600
   },
   aboutBox: {
     background: "white",
@@ -197,11 +271,6 @@ const styles = {
     cursor: "pointer",
     fontWeight: 500,
     borderRadius: 6
-  },
-  activeItem: {
-    background: "#e0e7ff",
-    color: "#1e3a8a",
-    fontWeight: 600
   },
   cards: {
     display: "grid",

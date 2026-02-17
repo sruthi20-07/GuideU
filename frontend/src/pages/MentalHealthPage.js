@@ -17,8 +17,6 @@ export default function MentalHealthPage() {
   });
 
   const [canEdit, setCanEdit] = useState(true);
-  const [nextEditIn, setNextEditIn] = useState(0);
-
   // 🔹 Load data & apply 24-hour lock
   useEffect(() => {
     const load = async () => {
@@ -33,15 +31,12 @@ export default function MentalHealthPage() {
 
         if (data.lastCheckIn) {
           const last = data.lastCheckIn.toDate();
-          const diffDays = Math.floor(
-            (Date.now() - last.getTime()) / (1000 * 60 * 60 * 24)
-          );
+          const diffHours = (Date.now() - last.getTime()) / (1000 * 60 * 60);
 
-          // ✅ 24 HOURS LOCK
-          if (diffDays < 1) {
-            setCanEdit(false);
-            setNextEditIn(1 - diffDays);
-          }
+if (diffHours < 24) {
+  setCanEdit(false);
+}
+
         }
       }
     };
@@ -91,7 +86,7 @@ export default function MentalHealthPage() {
 
     setForm(data);
     setCanEdit(false);
-    setNextEditIn(1); // ✅ 24 hours
+
   };
 
   return (

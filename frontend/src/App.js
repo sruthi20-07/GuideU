@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
 import Home from "./pages/Home";
@@ -13,10 +14,13 @@ import RoadmapPage from "./pages/RoadmapPage";
 import CareerDiscoveryPage from "./pages/CareerDiscoveryPage";
 import DailyTasksPage from "./pages/DailyTasksPage";
 import MentalHealthPage from "./pages/MentalHealthPage";
-
+import NotificationsPage from "./components/Notifications";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
 import { MenuContext } from "./context/MenuContext";
+import AlumniExperiencePage from "./pages/AlumniExperiencePage";
+import AlumniStoriesPage from "./pages/AlumniStoriesPage";
+
 
 /* ---------- Layout ---------- */
 function Layout({ children }) {
@@ -59,54 +63,106 @@ export default function App() {
                 <Dashboard />
               </ProtectedRoute>
             } />
+<Route path="/notifications" element={<NotificationsPage />} />
+<Route path="/ask/:questionId" element={
+  <ProtectedRoute>
+    <AskPage />
+  </ProtectedRoute>
+} />
 
-            <Route path="/ask-suggest" element={
-              <ProtectedRoute>
-                <AskSuggest />
-              </ProtectedRoute>
-            } />
 
-            <Route path="/ask" element={
-              <ProtectedRoute>
-                <AskPage />
-              </ProtectedRoute>
-            } />
 
-            <Route path="/suggest" element={
-              <ProtectedRoute>
-                <SuggestPage />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/ask-suggest"
+              element={
+                <ProtectedRoute>
+                  <AskSuggest />
+                </ProtectedRoute>
+              }
+            />
 
-            <Route path="/explore" element={
-              <ProtectedRoute>
-                <ExplorePage />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/ask"
+              element={
+                <ProtectedRoute>
+                  <AskPage />
+                </ProtectedRoute>
+              }
+            />
 
-            <Route path="/roadmap" element={
-              <ProtectedRoute>
-                <RoadmapPage />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/suggest"
+              element={
+                <ProtectedRoute>
+                  <SuggestPage />
+                </ProtectedRoute>
+              }
+            />
 
-            <Route path="/career" element={
-              <ProtectedRoute>
-                <CareerDiscoveryPage />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/explore"
+              element={
+                <ProtectedRoute>
+                  <ExplorePage />
+                </ProtectedRoute>
+              }
+            />
 
-            <Route path="/tasks" element={
-              <ProtectedRoute>
-                <DailyTasksPage />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/roadmap"
+              element={
+                <ProtectedRoute>
+                  <RoadmapPage />
+                </ProtectedRoute>
+              }
+            />
 
-            <Route path="/wellbeing" element={
-              <ProtectedRoute>
-                <MentalHealthPage />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/career"
+              element={
+                <ProtectedRoute>
+                  <CareerDiscoveryPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/tasks"
+              element={
+                <ProtectedRoute>
+                  <DailyTasksPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/wellbeing"
+              element={
+                <ProtectedRoute>
+                  <MentalHealthPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* 🎓 Alumni Posting Page */}
+            <Route
+              path="/alumni"
+              element={
+                <ProtectedRoute>
+                  <AlumniExperiencePage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* 🎓 Alumni Stories Page (For Everyone) */}
+            <Route
+              path="/alumni-stories"
+              element={
+                <ProtectedRoute>
+                  <AlumniStoriesPage />
+                </ProtectedRoute>
+              }
+            />
 
           </Routes>
         </Layout>

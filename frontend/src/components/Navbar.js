@@ -24,12 +24,11 @@ export default function Navbar() {
 
   const profileRef = useRef(null);
 
-  /* 🔹 Hide navbar on auth pages */
   const hideNavbar =
     location.pathname === "/login" ||
     location.pathname === "/register";
 
-  /* 🔥 REAL-TIME PROFILE LISTENER (FIX) */
+  /* 🔥 REAL-TIME PROFILE LISTENER */
   useEffect(() => {
     if (!auth.currentUser) return;
 
@@ -44,23 +43,30 @@ export default function Navbar() {
     return () => unsub();
   }, []);
 
-  /* 🔔 Notifications listener */
+  /* 🔔 Notifications */
   useEffect(() => {
-    if (!auth.currentUser) return;
+  const unsubscribeAuth = auth.onAuthStateChanged(user => {
+    if (!user) return;
 
     const q = query(
       collection(db, "notifications"),
-      where("userId", "==", auth.currentUser.uid)
+      where("userId", "==", user.uid)
     );
 
-    const unsub = onSnapshot(q, snap => {
-      setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    const unsubscribeNotifications = onSnapshot(q, snap => {
+      setNotifications(
+        snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      );
     });
 
-    return () => unsub();
-  }, []);
+    return () => unsubscribeNotifications();
+  });
 
-  /* Close dropdown on outside click */
+  return () => unsubscribeAuth();
+}, []);
+
+
+  /* Close dropdown */
   useEffect(() => {
     function close(e) {
       if (
@@ -86,7 +92,11 @@ export default function Navbar() {
       ? avatarMap[profile.avatar]
       : null;
 
-  const isAlumni = profile.year === 5 || profile.year === "alumni";
+  const isAlumni =
+    profile.year === 5 ||
+    profile.year === "alumni" ||
+    profile.year === "Alumni";
+
   const displayYear = isAlumni ? "🎓 Alumni" : `Year: ${profile.year}`;
 
   return (
@@ -124,9 +134,13 @@ export default function Navbar() {
 
       {/* RIGHT */}
       <div style={styles.right} ref={profileRef}>
-        <div style={{ cursor: "pointer", marginRight: 12 }}>
-          🔔 {notifications.filter(n => !n.read).length}
-        </div>
+        <div
+  style={{ cursor: "pointer", marginRight: 12 }}
+  onClick={() => navigate("/notifications")}
+>
+  🔔 {notifications.filter(n => !n.isRead).length}
+</div>
+
 
         <div
           style={styles.avatar}
@@ -155,6 +169,7 @@ export default function Navbar() {
               ×
             </div>
 
+            {/* USER INFO */}
             <div style={styles.userInfo}>
               <div style={{ position: "relative" }}>
                 <div style={styles.avatarLarge}>
@@ -186,6 +201,7 @@ export default function Navbar() {
               </div>
             </div>
 
+            {/* AVATAR EDIT GRID */}
             {editAvatar && (
               <div style={styles.avatarGrid}>
                 {AVATAR_KEYS.map(key => (
@@ -217,6 +233,7 @@ export default function Navbar() {
 
             <div style={styles.divider} />
 
+            {/* STATS */}
             <div style={{ fontSize: 14, lineHeight: "1.6" }}>
               📝 Questions Asked: {profile.questionsAsked || 0}<br />
               🪙 Coins: {profile.coins || 0}<br />
@@ -224,31 +241,6 @@ export default function Navbar() {
             </div>
 
             <div style={styles.divider} />
-
-            <div style={{ marginTop: 10 }}>
-              <b>Notifications</b>
-              {notifications.map(n => (
-                <div
-                  key={n.id}
-                  style={{
-                    fontSize: 13,
-                    padding: 6,
-                    background: n.read ? "#f3f4f6" : "#e0f2fe",
-                    marginTop: 6,
-                    borderRadius: 6,
-                    cursor: "pointer"
-                  }}
-                  onClick={async () => {
-                    await updateDoc(doc(db, "notifications", n.id), {
-                      read: true
-                    });
-                    navigate(n.link);
-                  }}
-                >
-                  {n.message}
-                </div>
-              ))}
-            </div>
 
             <div style={styles.divider} />
 
@@ -364,6 +356,11 @@ const styles = {
     marginTop: 12
   },
   divider: { height: 1, background: "#eee", margin: "12px 0" },
+  menuItem: {
+    padding: "8px 6px",
+    cursor: "pointer",
+    borderRadius: 6
+  },
   logout: {
     marginTop: 6,
     padding: "8px",
