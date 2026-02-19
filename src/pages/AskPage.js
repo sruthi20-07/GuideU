@@ -130,26 +130,19 @@ useEffect(() => {
 
 
   /* ================= SUBMIT QUESTION ================= */
+const submitQuestion = async () => {
+ 
+  if (!desc.trim()) return;
 
-  const submitQuestion = async () => {
-    if (profile.year !== 1) {
-  alert("Only 1st years can ask questions.");
-  return;
-}
+  if (!profile) {
+    alert("Please wait... profile loading.");
+    return;
+  }
 
- if (!desc.trim()) return;
-
-if (!profile) {
-  alert("Please wait... profile loading.");
-  return;
-}
-
-if (!selectedBranch) {
-  alert("Branch not selected.");
-  return;
-}
-
-
+  if (!selectedBranch) {
+    alert("Branch not selected.");
+    return;
+  }
 
   const newQuestion = {
     content: desc,
@@ -166,47 +159,59 @@ if (!selectedBranch) {
     collection(db, "questions"),
     newQuestion
   );
-  await updateDoc(doc(db, "users", auth.currentUser.uid), {
-  questionsAsked: increment(1)
-}).catch(async () => {
-  await updateDoc(doc(db, "users", auth.currentUser.uid), {
-    questionsAsked: 1
-  });
-});
 
-const usersSnap = await getDocs(collection(db, "users"));
-for (const userDoc of usersSnap.docs) {
-  const userData = userDoc.data();
-
- const receiverBranch = userData.branch?.trim().toLowerCase();
-const questionBranch = selectedBranch?.trim().toLowerCase();
-
-if (
-  userDoc.id !== myUid &&
-  receiverBranch === questionBranch
-)
- {
-    await addDoc(collection(db, "notifications"), {
-      userId: userDoc.id,
-      message: `New question asked in ${selectedBranch} branch`,
-      type: "question",
-      branch: selectedBranch,
-      questionId: questionRef.id,
-      isRead: false,
-      createdAt: serverTimestamp()
+  await updateDoc(doc(db, "users", myUid), {
+    questionsAsked: increment(1)
+  }).catch(async () => {
+    await updateDoc(doc(db, "users", myUid), {
+      questionsAsked: 1
     });
+  });
+
+  /* 🔔 NOTIFICATION LOGIC — CORRECT VERSION */
+
+  const usersSnap = await getDocs(collection(db, "users"));
+
+  const askerYear = Number(profile.year);
+  const questionBranch = selectedBranch?.trim().toLowerCase();
+
+  for (const userDoc of usersSnap.docs) {
+    const userData = userDoc.data();
+
+    const receiverBranch = userData.branch?.trim().toLowerCase();
+    const receiverYearRaw = userData.year;
+    const receiverYear = String(receiverYearRaw).toLowerCase();
+
+    if (userDoc.id === myUid) continue;
+
+    if (receiverBranch !== questionBranch) continue;
+
+    let shouldNotify = false;
+
+    if (receiverYear === "alumni" || Number(receiverYear) === 5) {
+      shouldNotify = true;
+    } else if (Number(receiverYear) > askerYear) {
+      shouldNotify = true;
+    }
+
+    if (shouldNotify) {
+      await addDoc(collection(db, "notifications"), {
+        userId: userDoc.id,
+        message: `New question from Year ${askerYear} in ${selectedBranch}`,
+        type: "question",
+        branch: selectedBranch,
+        questionId: questionRef.id,
+        isRead: false,
+        createdAt: serverTimestamp()
+      });
+    }
   }
-}
-
-
-
-
-
 
   setDesc("");
   setSuccessMsg("✔ Question submitted successfully");
   setTimeout(() => setSuccessMsg(""), 3000);
 };
+
 
 
  if (!profile || !selectedBranch) return null;
@@ -262,7 +267,8 @@ const unansweredQuestions = filtered.filter(q =>
           </button>
         ))}
       </div>
-      {profile.year === 1 && (
+      {[1, 2, 3, 4].includes(Number(profile.year)) && (
+
   <div
     style={{
       background: "white",

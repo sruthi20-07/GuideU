@@ -2,6 +2,8 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { auth, db } from "../firebase";
 import { query, where } from "firebase/firestore";
+import { getDocs } from "firebase/firestore";
+
 
 import {
   doc,
@@ -44,30 +46,30 @@ export default function Navbar() {
   }, []);
 
   /* 🔔 Notifications */
- useEffect(() => {
-  const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+/* 🔔 Notifications */
+useEffect(() => {
+  const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
     if (!user) return;
 
-    const q = query(
-  collection(db, "notifications"),
-  where("userId", "==", user.uid)
-);
+    console.log("CURRENT UID:", user.uid);
 
+    try {
+      const q = query(
+        collection(db, "notifications"),
+        where("userId", "==", user.uid)
+      );
 
-const unsubscribeNotifications = onSnapshot(
-  q,
-  (snap) => {
-    setNotifications(
-      snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-    );
-  },
+      const snap = await getDocs(q);
 
-      (error) => {
-        console.error("Notification error:", error);
-      }
-    );
+      console.log("NOTIFICATIONS FOUND:", snap.docs.length);
 
-    return () => unsubscribeNotifications();
+      setNotifications(
+        snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      );
+
+    } catch (error) {
+      console.error("Notification fetch error:", error);
+    }
   });
 
   return () => unsubscribeAuth();

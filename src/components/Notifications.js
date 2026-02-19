@@ -10,36 +10,52 @@ import {
   updateDoc
 } from "firebase/firestore";
 
-
-
 export default function NotificationsPage() {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
 
   /* 🔔 Load Notifications */
   useEffect(() => {
-  if (!auth.currentUser) return;
+    let unsubscribeNotifications = null;
 
-  const q = query(
-    collection(db, "notifications"),
-    where("userId", "==", auth.currentUser.uid)
-  );
+    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+      if (!user) {
+        setNotifications([]);
+        return;
+      }
 
-  const unsubscribe = onSnapshot(
-    q,
-    (snap) => {
-      setNotifications(
-        snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      const q = query(
+        collection(db, "notifications"),
+        where("userId", "==", user.uid)
       );
-    },
-    (error) => {
-      console.error("Notification listener error:", error);
-    }
-  );
 
-  return () => unsubscribe();
-}, []);
+      // Real-time listener
+      unsubscribeNotifications = onSnapshot(
+        q,
+        (snap) => {
+          console.log("NOTIFICATIONS PAGE FOUND:", snap.size);
 
+          setNotifications(
+            snap.docs.map((d) => ({
+              id: d.id,
+              ...d.data()
+            }))
+          );
+        },
+        (error) => {
+          console.error("Notification listener error:", error);
+        }
+      );
+    });
+
+    // Cleanup
+    return () => {
+      if (unsubscribeNotifications) {
+        unsubscribeNotifications();
+      }
+      unsubscribeAuth();
+    };
+  }, []);
 
   /* 🕒 Format Time */
   const formatTime = (ts) => {
@@ -51,25 +67,29 @@ export default function NotificationsPage() {
 
   /* 📌 Handle Click */
   const openNotification = async (n) => {
-  // 1️⃣ mark as read
-  await updateDoc(doc(db, "notifications", n.id), {
-    isRead: true
-  });
+    try {
+      // 1️⃣ mark as read
+      await updateDoc(doc(db, "notifications", n.id), {
+        isRead: true
+      });
 
-  // 2️⃣ If question notification → go to Suggest page
-  if (n.type === "question") {
-    navigate(`/suggest?branch=${n.branch}&question=${n.questionId}`);
-    return;
-  }
+      // 2️⃣ If question notification → go to Suggest page
+      if (n.type === "question") {
+        navigate(`/suggest?branch=${n.branch}&question=${n.questionId}`);
+        return;
+      }
 
-  // 3️⃣ If answer notification → go to Ask page
-  if (n.type === "answer") {
-    navigate(`/ask?branch=${n.branch}&question=${n.questionId}&answer=${n.answerId}`);
-    return;
-  }
-};
-
-
+      // 3️⃣ If answer notification → go to Ask page
+      if (n.type === "answer") {
+        navigate(
+          `/ask?branch=${n.branch}&question=${n.questionId}&answer=${n.answerId}`
+        );
+        return;
+      }
+    } catch (err) {
+      console.error("Error opening notification:", err);
+    }
+  };
 
   return (
     <div style={{ padding: 24 }}>
