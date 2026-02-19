@@ -1,80 +1,222 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { auth, db } from "../firebase";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  serverTimestamp
+} from "firebase/firestore";
+
 
 export default function DailyTasksPage() {
   const [tasks, setTasks] = useState([]);
+  const [newTask, setNewTask] = useState("");
   const [streak, setStreak] = useState(0);
+  const [lastCompletedDate, setLastCompletedDate] = useState(null);
+  const [showPopup, setShowPopup] = useState(false);
+
+  const uid = auth.currentUser?.uid;
   const today = new Date().toISOString().slice(0, 10);
+/* 🔹 SAVE HELPER (🔥 FIXED) */
+  const save = useCallback(async (tasksData, streakVal, lastDate) => {
+  await setDoc(doc(db, "dailyTasks", uid), {
+    tasks: tasksData,
+    streak: streakVal,
+    lastCompletedDate: lastDate ?? null,
+    date: today,
+    updatedAt: serverTimestamp()
+  });
+}, [uid, today]);
 
+  /* 🔹 LOAD DATA */
   useEffect(() => {
-    const load = async () => {
-      const snap = await getDoc(doc(db, "dailyTasks", auth.currentUser.uid));
+    if (!uid) return;
 
-      if (snap.exists() && snap.data().date === today) {
-        setTasks(snap.data().tasks);
-      } else {
-        generateTasks();
+    const load = async () => {
+      const snap = await getDoc(doc(db, "dailyTasks", uid));
+      if (!snap.exists()) return;
+
+      const data = snap.data();
+
+      let loadedTasks = data.tasks || [];
+
+      // 🔁 RESET TASKS IF NEW DAY
+      if (data.date !== today) {
+        loadedTasks = loadedTasks.map(t => ({ ...t, done: false }));
       }
 
-      const prog = await getDoc(doc(db, "progress", auth.currentUser.uid));
-      if (prog.exists()) setStreak(prog.data().currentStreak || 0);
+      setTasks(loadedTasks);
+      setStreak(data.streak || 0);
+      setLastCompletedDate(data.lastCompletedDate ?? null);
+
+      // Save reset if day changed
+      if (data.date !== today) {
+        await save(
+          loadedTasks,
+          data.streak || 0,
+          data.lastCompletedDate ?? null
+        );
+      }
     };
+
     load();
-  }, []);
+  }, [uid, today, save]);
+  /* 🔹 ADD TASK */
+  const addTask = async () => {
+    if (!newTask.trim()) return;
 
-  const generateTasks = async () => {
-    const base = [
-      "Solve 1 DSA problem",
-      "Watch 1 system design video",
-      "Practice 1 coding question",
-      "Read 10 pages of tech blog"
-    ];
+    const updated = [...tasks, { title: newTask.trim(), done: false }];
+    setTasks(updated);
+    setNewTask("");
 
-    const newTasks = base.map(t => ({ title: t, done: false }));
-
-    await setDoc(doc(db, "dailyTasks", auth.currentUser.uid), {
-      date: today,
-      tasks: newTasks,
-      createdAt: serverTimestamp()
-    });
-
-    setTasks(newTasks);
+    await save(updated, streak, lastCompletedDate);
   };
 
-  const toggleTask = async (index) => {
+  /* 🔹 COMPLETE TASK (NO UNCHECK) */
+  const completeTask = async (index) => {
+    if (tasks[index].done) return;
+
     const updated = [...tasks];
-    updated[index].done = !updated[index].done;
+    updated[index].done = true;
     setTasks(updated);
 
-    await setDoc(doc(db, "dailyTasks", auth.currentUser.uid), {
-      date: today,
-      tasks: updated,
-      createdAt: serverTimestamp()
-    });
+    let newStreak = streak;
+    let newLastDate = lastCompletedDate;
 
-    if (updated.every(t => t.done)) {
-      const newStreak = streak + 1;
+    const allDone =
+      updated.length > 0 && updated.every(t => t.done);
+
+    // 🔥 INCREASE STREAK ONLY ONCE PER DAY
+    if (allDone && lastCompletedDate !== today) {
+      newStreak = streak + 1;
+      newLastDate = today;
+
       setStreak(newStreak);
+      setLastCompletedDate(today);
 
-      await setDoc(doc(db, "progress", auth.currentUser.uid), {
-        currentStreak: newStreak,
-        lastUpdated: serverTimestamp()
-      }, { merge: true });
+      // ✅ UPDATE USER PROFILE
+      await updateDoc(doc(db, "users", uid), {
+        dailyStreak: newStreak
+      });
+
+      // 🎉 SHOW POPUP
+      setShowPopup(true);
+      setTimeout(() => setShowPopup(false), 2000);
     }
+
+    await save(updated, newStreak, newLastDate);
   };
 
   return (
-    <div style={{ padding: 24 }}>
-      <h2>Daily Micro Tasks</h2>
-      <p>🔥 Current Streak: {streak} days</p>
+    <div style={styles.page}>
+      <div style={styles.card}>
+        <h2>Daily Tasks</h2>
+        <p style={styles.streak}>🔥 Streak: {streak} days</p>
 
-      {tasks.map((task, i) => (
-        <div key={i} style={{ marginTop: 10 }}>
-          <input type="checkbox" checked={task.done} onChange={() => toggleTask(i)} />
-          <span style={{ marginLeft: 8 }}>{task.title}</span>
+        {/* ADD TASK */}
+        <div style={styles.addRow}>
+          <input
+            style={styles.input}
+            placeholder="Add task..."
+            value={newTask}
+            onChange={e => setNewTask(e.target.value)}
+          />
+          <button style={styles.addBtn} onClick={addTask}>
+            Add
+          </button>
         </div>
-      ))}
+
+        {/* TASK LIST */}
+        {tasks.map((task, i) => (
+          <div key={i} style={styles.row}>
+            <input
+              type="checkbox"
+              checked={task.done}
+              disabled={task.done}
+              onChange={() => completeTask(i)}
+            />
+            <span
+              style={{
+                marginLeft: 8,
+                textDecoration: task.done ? "line-through" : "none"
+              }}
+            >
+              {task.title}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* 🎉 POPUP */}
+      {showPopup && (
+        <div style={styles.popupOverlay}>
+          <div style={styles.popup}>
+            🎉 You completed all tasks today!
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+/* 🎨 STYLES */
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "#f3f4f6",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  card: {
+    background: "#fff",
+    padding: 28,
+    borderRadius: 12,
+    width: 420,
+    boxShadow: "0 10px 25px rgba(0,0,0,0.1)"
+  },
+  streak: {
+    color: "#ef4444",
+    fontWeight: "bold"
+  },
+  addRow: {
+    display: "flex",
+    gap: 8,
+    marginBottom: 10
+  },
+  input: {
+    flex: 1,
+    padding: 8,
+    borderRadius: 6,
+    border: "1px solid #ccc"
+  },
+  addBtn: {
+    padding: "8px 12px",
+    background: "#4f46e5",
+    color: "#fff",
+    border: "none",
+    borderRadius: 6
+  },
+  row: {
+    display: "flex",
+    alignItems: "center",
+    marginTop: 8
+  },
+  popupOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.3)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  popup: {
+    background: "#22c55e",
+    color: "#fff",
+    padding: "16px 24px",
+    borderRadius: 10,
+    fontSize: 16,
+    fontWeight: 600
+  }
+};

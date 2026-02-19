@@ -1,55 +1,60 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { auth, db } from "../firebase";
-import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
+import { avatarMap, AVATAR_KEYS } from "../utils/avatarMap";
 
 export default function ProfileMenu() {
   const [open, setOpen] = useState(false);
+  const [editAvatar, setEditAvatar] = useState(false);
   const [profile, setProfile] = useState(null);
-  const [stats, setStats] = useState({
-    questions: 0,
-    answered: 0,
-    likedGiven: 0,
-    coins: 0
-  });
+  const menuRef = useRef();
 
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!auth.currentUser) return;
+
     const load = async () => {
-      const uid = auth.currentUser.uid;
+      const snap = await getDoc(doc(db, "users", auth.currentUser.uid));
+      const data = snap.data();
 
-      const userSnap = await getDoc(doc(db, "users", uid));
-      const me = userSnap.data();
-      setProfile(me);
+      // 🧹 AUTO-REPAIR BROKEN AVATAR DATA
+      if (!data.avatar || !avatarMap[data.avatar]) {
+        const defaultAvatar = AVATAR_KEYS[0];
 
-      const qSnap = await getDocs(collection(db, "questions"));
-      const aSnap = await getDocs(collection(db, "answers"));
+        await updateDoc(doc(db, "users", auth.currentUser.uid), {
+          avatar: defaultAvatar
+        });
 
-      const myQuestions = qSnap.docs.filter(d => d.data().askedById === uid);
-      const myAnswers = aSnap.docs.filter(d => d.data().answeredById === uid);
-
-      const uniqueAnsweredQuestions = new Set(
-        myAnswers.map(a => a.data().questionId)
-      );
-
-      let likedGiven = 0;
-      aSnap.docs.forEach(d => {
-        const a = d.data();
-        if ((a.likedBy || []).includes(uid)) likedGiven += 1;
-      });
-
-      setStats({
-        questions: myQuestions.length,
-        answered: uniqueAnsweredQuestions.size,
-        likedGiven,
-        coins: uniqueAnsweredQuestions.size
-      });
+        setProfile({ ...data, avatar: defaultAvatar });
+      } else {
+        setProfile(data);
+      }
     };
 
     load();
   }, []);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpen(false);
+        setEditAvatar(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const updateAvatar = async (key) => {
+    await updateDoc(doc(db, "users", auth.currentUser.uid), { avatar: key });
+    setProfile(prev => ({ ...prev, avatar: key }));
+    setEditAvatar(false);
+  };
 
   const logout = async () => {
     await signOut(auth);
@@ -58,101 +63,78 @@ export default function ProfileMenu() {
 
   if (!profile) return null;
 
-  const isAlumni = profile.year === 5 || profile.year === "alumni";
-  const displayYear = isAlumni ? "Alumni" : `Year ${profile.year}`;
+  // 🔥 IMPORTANT FIX
+  const userYear = profile.year === "alumni"
+    ? "alumni"
+    : Number(profile.year);
 
   return (
-    <div style={{ position: "absolute", top: 15, right: 15, zIndex: 100 }}>
-      <div
-        onClick={() => setOpen(true)}
-        style={{
-          width: 42,
-          height: 42,
-          borderRadius: "50%",
-          background: "#2563eb",
-          color: "white",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          fontWeight: 600
-        }}
-      >
-        {profile.name?.[0]?.toUpperCase()}
+    <div style={{ position: "absolute", top: 15, right: 15 }} ref={menuRef}>
+      {/* AVATAR ICON */}
+      <div onClick={() => setOpen(prev => !prev)} style={{ cursor: "pointer" }}>
+        <img
+          src={avatarMap[profile.avatar]}
+          alt="profile"
+          style={{ width: 44, height: 44, borderRadius: "50%" }}
+        />
       </div>
 
       {open && (
-        <div
-          style={{
-            position: "absolute",
-            right: 0,
-            top: 50,
-            background: "white",
-            padding: 14,
-            borderRadius: 10,
-            width: 230,
-            boxShadow: "0 10px 20px rgba(0,0,0,.15)"
-          }}
-        >
-          {/* ❌ Close Button */}
-          <div
-            onClick={() => setOpen(false)}
-            style={{
-              position: "absolute",
-              top: 8,
-              right: 10,
-              cursor: "pointer",
-              fontSize: 16,
-              fontWeight: 700,
-              color: "#444"
-            }}
-          >
-            ×
-          </div>
-
+        <div style={styles.menu}>
           <strong>{profile.name}</strong>
-          <div style={{ fontSize: 12, color: "#555", marginBottom: 8 }}>
-            {profile.branch} • {displayYear}
+
+          {/* 🎯 YEAR BASED STATS DISPLAY */}
+
+          {userYear === 1 && (
+            <div style={{ marginTop: 8 }}>
+              ❓ Questions Asked: {profile.questionsAsked || 0}
+            </div>
+          )}
+
+          {[2,3,4].includes(userYear) && (
+            <div style={{ marginTop: 8 }}>
+              ❓ Questions Asked: {profile.questionsAsked || 0}
+              <br />
+              💬 Answers Given: {profile.answersGiven || 0}
+            </div>
+          )}
+
+          {userYear === "alumni" && (
+            <div style={{ marginTop: 8 }}>
+              💬 Answers Given: {profile.answersGiven || 0}
+            </div>
+          )}
+
+          <div style={{ marginTop: 10 }}>
+            <button
+              onClick={() => setEditAvatar(prev => !prev)}
+              style={styles.editBtn}
+            >
+              ✏️ Change Avatar
+            </button>
           </div>
 
-          <div style={{ fontSize: 13, lineHeight: "1.6" }}>
-            {profile.year === 1 && (
-              <>
-                📝 Questions Asked: {stats.questions}<br />
-                ❤️ Likes Given: {stats.likedGiven}
-              </>
-            )}
+          {editAvatar && (
+            <div style={styles.avatarGrid}>
+              {AVATAR_KEYS.map(key => (
+                <img
+                  key={key}
+                  src={avatarMap[key]}
+                  onClick={() => updateAvatar(key)}
+                  style={{
+                    ...styles.avatar,
+                    border:
+                      profile.avatar === key
+                        ? "3px solid #2563eb"
+                        : "2px solid transparent"
+                  }}
+                  alt="avatar"
+                />
+              ))}
+            </div>
+          )}
 
-            {profile.year > 1 && profile.year < 5 && (
-              <>
-                📝 Questions Asked: {stats.questions}<br />
-                🧑‍🏫 Questions Answered: {stats.answered}<br />
-                🪙 Coins: {stats.coins}
-              </>
-            )}
-
-            {isAlumni && (
-              <>
-                🧑‍🏫 Questions Answered: {stats.answered}<br />
-                🪙 Coins: {stats.coins}
-              </>
-            )}
-          </div>
-
-          <button
-            onClick={logout}
-            style={{
-              marginTop: 12,
-              width: "100%",
-              padding: 8,
-              borderRadius: 6,
-              background: "#ef4444",
-              color: "white",
-              border: "none",
-              cursor: "pointer",
-              fontWeight: 600
-            }}
-          >
+          <button onClick={logout} style={styles.logout}>
             Logout
           </button>
         </div>
@@ -160,3 +142,44 @@ export default function ProfileMenu() {
     </div>
   );
 }
+
+const styles = {
+  menu: {
+    marginTop: 10,
+    background: "white",
+    padding: 14,
+    width: 240,
+    borderRadius: 12,
+    boxShadow: "0 10px 20px rgba(0,0,0,.15)"
+  },
+  editBtn: {
+    width: "100%",
+    padding: 6,
+    borderRadius: 6,
+    background: "#e5e7eb",
+    border: "none",
+    cursor: "pointer"
+  },
+  avatarGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3,1fr)",
+    gap: 10,
+    marginTop: 10
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: "50%",
+    cursor: "pointer"
+  },
+  logout: {
+    marginTop: 12,
+    width: "100%",
+    padding: 8,
+    background: "#ef4444",
+    color: "white",
+    border: "none",
+    borderRadius: 6,
+    cursor: "pointer"
+  }
+};

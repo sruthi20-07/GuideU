@@ -23,6 +23,24 @@
   font-size: calc(10px + 2vmin);
   color: white;
 }
+.sidebarItem {
+  padding: 14px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-weight: 600;
+  font-size: 15px;
+  color: #1f2937;   /* strong dark gray */
+  letter-spacing: 0.3px;
+}
+
+.sidebarItem:hover {
+  background: #eef2ff;
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
+  transform: translateX(6px);
+  color: #2563eb;   /* blue on hover */
+}
+
 
 .App-link {
   color: #61dafb;

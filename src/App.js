@@ -1,90 +1,181 @@
+import React, { useState } from "react";
+
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
+import AskPage from "./pages/AskPage";
+import SuggestPage from "./pages/SuggestPage";
+import AskSuggest from "./pages/Ask_Suggest";
+import ExplorePage from "./pages/ExplorePage";
+import RoadmapPage from "./pages/RoadmapPage";
+import CareerDiscoveryPage from "./pages/CareerDiscoveryPage";
+import DailyTasksPage from "./pages/DailyTasksPage";
+import MentalHealthPage from "./pages/MentalHealthPage";
+import NotificationsPage from "./components/Notifications";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
+import { MenuContext } from "./context/MenuContext";
+import AlumniExperiencePage from "./pages/AlumniExperiencePage";
+import AlumniStoriesPage from "./pages/AlumniStoriesPage";
 
+
+/* ---------- Layout ---------- */
 function Layout({ children }) {
   const location = useLocation();
-<<<<<<< HEAD
 
-  // Hide navbar ONLY on landing + auth pages
-=======
->>>>>>> main
   const hideNavbar =
-    location.pathname === "/" ||
     location.pathname === "/login" ||
     location.pathname === "/register";
 
   return (
     <>
       {!hideNavbar && <Navbar />}
-      {children}
+      <div style={{ paddingTop: hideNavbar ? 0 : 60 }}>
+        {children}
+      </div>
     </>
   );
 }
 
+/* ---------- App ---------- */
 export default function App() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const toggleMenu = () => setMenuOpen(prev => !prev);
+
   return (
-    <BrowserRouter>
-      <Layout>
-        <Routes>
-<<<<<<< HEAD
-          {/* ✅ FRONT PAGE */}
-          <Route path="/" element={<Home />} />
+    <MenuContext.Provider value={{ menuOpen, toggleMenu }}>
+      <BrowserRouter>
+        <Layout>
+          <Routes>
 
-          {/* Auth pages */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+            {/* PUBLIC ROUTES */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-          {/* Protected */}
-=======
-          {/* PUBLIC */}
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-
-          {/* PROTECTED */}
->>>>>>> main
-          <Route
-            path="/dashboard"
-            element={
+            {/* PROTECTED ROUTES */}
+            <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />
               </ProtectedRoute>
-            }
-          />
-<<<<<<< HEAD
-=======
-          <Route
-            path="/ask"
-            element={
-              <ProtectedRoute>
-                <AskPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/suggest"
-            element={
-              <ProtectedRoute>
-                <SuggestPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/explore"
-            element={
-              <ProtectedRoute>
-                <ExplorePage />
-              </ProtectedRoute>
-            }
-          />
->>>>>>> main
-        </Routes>
-      </Layout>
-    </BrowserRouter>
+            } />
+<Route
+  path="/notifications"
+  element={
+    <ProtectedRoute>
+      <NotificationsPage />
+    </ProtectedRoute>
+  }
+/>
+
+
+<Route path="/ask/:questionId" element={
+  <ProtectedRoute>
+    <AskPage />
+  </ProtectedRoute>
+} />
+
+
+
+            <Route
+              path="/ask-suggest"
+              element={
+                <ProtectedRoute>
+                  <AskSuggest />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/ask"
+              element={
+                <ProtectedRoute>
+                  <AskPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/suggest"
+              element={
+                <ProtectedRoute>
+                  <SuggestPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/explore"
+              element={
+                <ProtectedRoute>
+                  <ExplorePage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/roadmap"
+              element={
+                <ProtectedRoute>
+                  <RoadmapPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/career"
+              element={
+                <ProtectedRoute>
+                  <CareerDiscoveryPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/tasks"
+              element={
+                <ProtectedRoute>
+                  <DailyTasksPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/wellbeing"
+              element={
+                <ProtectedRoute>
+                  <MentalHealthPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* 🎓 Alumni Posting Page */}
+            <Route
+              path="/alumni"
+              element={
+                <ProtectedRoute>
+                  <AlumniExperiencePage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* 🎓 Alumni Stories Page (For Everyone) */}
+            <Route
+              path="/alumni-stories"
+              element={
+                <ProtectedRoute>
+                  <AlumniStoriesPage />
+                </ProtectedRoute>
+              }
+            />
+
+          </Routes>
+        </Layout>
+      </BrowserRouter>
+    </MenuContext.Provider>
   );
 }

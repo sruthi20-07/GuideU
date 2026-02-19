@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import { auth, db } from "../firebase";
+import { increment, updateDoc } from "firebase/firestore";
 import {
   collection,
-  getDocs,
   query,
   where,
   addDoc,
   serverTimestamp,
-  updateDoc,
   doc,
-  getDoc
+  getDoc,
+  onSnapshot
 } from "firebase/firestore";
+import { getDocs } from "firebase/firestore";  
 import { useSearchParams } from "react-router-dom";
 import ProfileMenu from "../components/ProfileMenu";
 
@@ -23,6 +24,10 @@ const RESOURCES = [
 ];
 
 export default function AskPage() {
+
+  /* ================== ONE-TIME DATA REPAIR ================== */
+
+
   const [profile, setProfile] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState([]);
@@ -30,174 +35,224 @@ export default function AskPage() {
   const [desc, setDesc] = useState("");
   const [search, setSearch] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  const [commentText, setCommentText] = useState({});
 
   const [params] = useSearchParams();
   const selectedBranch = params.get("branch");
+  const myUid = auth.currentUser?.uid;
 
+  // ===== SAFE DATE FORMATTER (fixes your crash) =====
+  const formatTime = (ts) => {
+    if (!ts) return "";
+    if (ts.toDate) return ts.toDate().toLocaleString();
+    if (ts.seconds) return new Date(ts.seconds * 1000).toLocaleString();
+    return "";
+  };
+
+  /* ================= DATA LOADER ================= */
   useEffect(() => {
-    const load = async () => {
-      const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
-      const me = userSnap.data();
-      setProfile(me);
+  if (!myUid || !selectedBranch) return;
 
-      const answeredSnap = await getDocs(
-        query(
-          collection(db, "questions"),
-          where("branch", "==", selectedBranch),
-          where("resourceType", "==", activeResource),
-          where("isAnswered", "==", true)
-        )
-      );
+  const load = async () => {
+    const userSnap = await getDoc(doc(db, "users", myUid));
+    setProfile(userSnap.data());
 
-      const mySnap = await getDocs(
-        query(
-          collection(db, "questions"),
-          where("askedById", "==", auth.currentUser.uid),
-          where("branch", "==", selectedBranch),
-          where("resourceType", "==", activeResource)
-        )
-      );
+    const qRef = query(
+      collection(db, "questions"),
+      where("branch", "==", selectedBranch),
+      where("resourceType", "==", activeResource)
+    );
 
-      const answered = answeredSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const mine = mySnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const unsubQ = onSnapshot(qRef, snap => {
+      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-      const merged = [
-        ...answered,
-        ...mine.filter(m => !answered.some(a => a.id === m.id))
-      ];
+      const mine = all.filter(q => q.askedById === myUid);
+const publicAnswered = all.filter(q => q.isAnswered);
 
-      const aSnap = await getDocs(collection(db, "answers"));
+const merged = [
+  ...mine,
+  ...publicAnswered.filter(q => q.askedById !== myUid)
+];
+
+
 
       setQuestions(merged);
-      setAnswers(aSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-    };
+    });
 
-    if (selectedBranch) load();
-  }, [activeResource, selectedBranch]);
+    const unsubA = onSnapshot(collection(db, "answers"), snap => {
+      setAnswers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => {
+      unsubQ();
+      unsubA();
+    };
+  };
+
+  let unsub = () => {};
+  load().then(u => (unsub = u));
+
+  return () => unsub();
+}, [activeResource, selectedBranch, myUid]);
+useEffect(() => {
+  const questionId = params.get("question");
+  const answerId = params.get("answer");
+
+  setTimeout(() => {
+    if (questionId) {
+      const element = document.getElementById(questionId);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        // highlight
+        element.style.outline = "3px solid #facc15";
+        setTimeout(() => {
+          element.style.outline = "";
+        }, 2000);
+      }
+    }
+
+    if (answerId) {
+      const element = document.getElementById(answerId);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        element.style.outline = "3px solid #facc15";
+        setTimeout(() => {
+          element.style.outline = "";
+        }, 2000);
+      }
+    }
+  }, 300);
+
+}, [questions, answers, params]);
+
+
+
+
+  /* ================= SUBMIT QUESTION ================= */
 
   const submitQuestion = async () => {
-    if (!desc.trim()) return;
+    if (profile.year !== 1) {
+  alert("Only 1st years can ask questions.");
+  return;
+}
 
-    await addDoc(collection(db, "questions"), {
-      content: desc,
-      resourceType: activeResource,
+ if (!desc.trim()) return;
+
+if (!profile) {
+  alert("Please wait... profile loading.");
+  return;
+}
+
+if (!selectedBranch) {
+  alert("Branch not selected.");
+  return;
+}
+
+
+
+  const newQuestion = {
+    content: desc,
+    askedById: myUid,
+    askedByName: profile.name,
+    askedByYear: profile.year,
+    branch: selectedBranch,
+    resourceType: activeResource,
+    isAnswered: false,
+    createdAt: serverTimestamp()
+  };
+
+  const questionRef = await addDoc(
+    collection(db, "questions"),
+    newQuestion
+  );
+  await updateDoc(doc(db, "users", auth.currentUser.uid), {
+  questionsAsked: increment(1)
+}).catch(async () => {
+  await updateDoc(doc(db, "users", auth.currentUser.uid), {
+    questionsAsked: 1
+  });
+});
+
+const usersSnap = await getDocs(collection(db, "users"));
+for (const userDoc of usersSnap.docs) {
+  const userData = userDoc.data();
+
+ const receiverBranch = userData.branch?.trim().toLowerCase();
+const questionBranch = selectedBranch?.trim().toLowerCase();
+
+if (
+  userDoc.id !== myUid &&
+  receiverBranch === questionBranch
+)
+ {
+    await addDoc(collection(db, "notifications"), {
+      userId: userDoc.id,
+      message: `New question asked in ${selectedBranch} branch`,
+      type: "question",
       branch: selectedBranch,
-      askedById: auth.currentUser.uid,
-      askedByYear: profile.year,
-      isAnswered: false,
+      questionId: questionRef.id,
+      isRead: false,
       createdAt: serverTimestamp()
     });
+  }
+}
 
-    setDesc("");
-    setSuccessMsg("✔ Question submitted successfully");
-    setTimeout(() => setSuccessMsg(""), 3000);
-  };
 
-  const reactToAnswer = async (answer, type) => {
-    const uid = auth.currentUser.uid;
-    if (answer.answeredById === uid) return;
 
-    const likedBy = answer.likedBy || [];
-    const dislikedBy = answer.dislikedBy || [];
 
-    if (type === "like" && !likedBy.includes(uid)) {
-      const newLiked = [...likedBy, uid];
-      const newDisliked = dislikedBy.filter(x => x !== uid);
-      await updateDoc(doc(db, "answers", answer.id), {
-        likedBy: newLiked,
-        dislikedBy: newDisliked,
-        likes: newLiked.length,
-        dislikes: newDisliked.length
-      });
-    }
 
-    if (type === "dislike" && !dislikedBy.includes(uid)) {
-      const newDisliked = [...dislikedBy, uid];
-      const newLiked = likedBy.filter(x => x !== uid);
-      await updateDoc(doc(db, "answers", answer.id), {
-        dislikedBy: newDisliked,
-        likedBy: newLiked,
-        dislikes: newDisliked.length,
-        likes: newLiked.length
-      });
-    }
 
-    const snap = await getDocs(collection(db, "answers"));
-    setAnswers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-  };
+  setDesc("");
+  setSuccessMsg("✔ Question submitted successfully");
+  setTimeout(() => setSuccessMsg(""), 3000);
+};
 
-  const addComment = async (answer) => {
-    const uid = auth.currentUser.uid;
-    const text = commentText[answer.id];
-    if (!text) return;
 
-    const old = answer.comments || [];
-    if (old.some(c => c.uid === uid)) return;
-
-    const newComments = [...old, { uid, text }];
-
-    await updateDoc(doc(db, "answers", answer.id), {
-      comments: newComments
-    });
-
-    const snap = await getDocs(collection(db, "answers"));
-    setAnswers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    setCommentText({ ...commentText, [answer.id]: "" });
-  };
-
-  if (!profile) return null;
-
-  // 🔧 Search fix added here
+ if (!profile || !selectedBranch) return null;
   const normalizedSearch = search.trim().toLowerCase();
 
-  const visible = questions
-    .filter(q => q.content.toLowerCase().includes(normalizedSearch))
-    .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  const filtered = questions
+  .filter(q => q.content.toLowerCase().includes(normalizedSearch))
+  .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+const answeredQuestions = filtered.filter(q =>
+  answers.some(a => a.questionId === q.id)
+);
+
+const unansweredQuestions = filtered.filter(q =>
+  !answers.some(a => a.questionId === q.id)
+);
+
 
   return (
     <div style={{ padding: 24 }}>
       <ProfileMenu />
 
+  
+
       {successMsg && (
-        <div style={{
-          background: "#d1fae5",
-          color: "#065f46",
-          padding: 10,
-          borderRadius: 8,
-          marginBottom: 12,
-          textAlign: "center"
-        }}>
+        <div style={{ background: "#d1fae5", padding: 10, borderRadius: 8, marginBottom: 12 }}>
           {successMsg}
         </div>
       )}
 
-      <div style={{ textAlign: "center", marginBottom: 14 }}>
-        <input
-          placeholder="Search questions..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ width: 260, padding: 8, borderRadius: 8 }}
-        />
-      </div>
+      <input
+        placeholder="Search questions..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        style={{ width: 260, padding: 8, borderRadius: 8, marginBottom: 14 }}
+      />
 
-      {/* 🔧 No results feedback */}
-      {visible.length === 0 && normalizedSearch && (
-        <div style={{ textAlign: "center", color: "#777", marginBottom: 12 }}>
-          No questions match your search
-        </div>
-      )}
-
-      <div style={{ display: "flex", gap: 10, overflowX: "auto", marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
         {RESOURCES.map(r => (
+          
           <button
             key={r}
             onClick={() => setActiveResource(r)}
             style={{
-              whiteSpace: "nowrap",
               padding: "8px 14px",
               borderRadius: 14,
-              fontWeight: 600,
               background: activeResource === r ? "#2563eb" : "#e5e7eb",
               color: activeResource === r ? "white" : "black",
               border: "none"
@@ -207,64 +262,154 @@ export default function AskPage() {
           </button>
         ))}
       </div>
+      {profile.year === 1 && (
+  <div
+    style={{
+      background: "white",
+      padding: 16,
+      borderRadius: 10,
+      marginBottom: 20,
+      boxShadow: "0 2px 6px rgba(0,0,0,0.05)"
+    }}
+  >
+    <textarea
+      placeholder="Describe your question..."
+      value={desc}
+      onChange={e => setDesc(e.target.value)}
+      style={{
+        width: "100%",
+        height: 70,
+        padding: 8,
+        borderRadius: 8,
+        border: "1px solid #d1d5db",
+        marginBottom: 10
+      }}
+    />
 
-      {visible.map(q => {
-        const hasAnswer = answers.some(a => a.questionId === q.id);
+    <button
+      onClick={submitQuestion}
+      style={{
+        background: "#2563eb",
+        color: "white",
+        border: "none",
+        padding: "8px 16px",
+        borderRadius: 8,
+        cursor: "pointer"
+      }}
+    >
+      Submit Question
+    </button>
+  </div>
+)}
 
-        return (
-          <div key={q.id} style={{ background: "white", padding: 14, borderRadius: 10, marginBottom: 14 }}>
-            <p style={{ fontWeight: 600 }}>{q.content}</p>
 
-            {!hasAnswer && (
-              <div style={{ color: "#f59e0b", fontSize: 13, marginBottom: 6 }}>
-                ⏳ Waiting for answer
-              </div>
-            )}
+      <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
 
-            {answers.filter(a => a.questionId === q.id).map(a => (
-              <div key={a.id} style={{ background: "#f3f4f6", padding: 8, borderRadius: 8, marginTop: 6 }}>
-                {a.content}
+  {/* ANSWERED */}
+  <div style={{ flex: 1 }}>
+    <div
+      style={{
+        background: "#d1fae5",
+        padding: 12,
+        borderRadius: 10,
+        marginBottom: 10,
+        fontWeight: "bold"
+      }}
+    >
+      Answered
+    </div>
 
-                <div style={{ marginTop: 6 }}>
-                  <button onClick={() => reactToAnswer(a, "like")}>👍 {a.likes || 0}</button>
-                  <button onClick={() => reactToAnswer(a, "dislike")} style={{ marginLeft: 6 }}>
-                    👎 {a.dislikes || 0}
-                  </button>
-                </div>
+    {answeredQuestions.map(q => {
+      const qAnswers = answers.filter(a => a.questionId === q.id);
+      const isMine = q.askedById === myUid;
 
-                <input
-                  placeholder="Add comment"
-                  value={commentText[a.id] || ""}
-                  onChange={e => setCommentText({ ...commentText, [a.id]: e.target.value })}
-                  style={{ width: "100%", marginTop: 6 }}
-                />
+      return (
+        <div
+          id={q.id}
+          key={q.id}
+          style={{
+            background: "#ecfdf5",
+            padding: 14,
+            borderRadius: 10,
+            marginBottom: 14
+          }}
+        >
+          <b>{q.content}</b>
 
-                <button onClick={() => addComment(a)} style={{ marginTop: 4 }}>
-                  Comment
-                </button>
-
-                {(a.comments || []).map((c, i) => (
-                  <div key={i} style={{ fontSize: 12, marginTop: 4 }}>
-                    💬 {c.text}
-                  </div>
-                ))}
-              </div>
-            ))}
+          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>
+            Posted anonymously • {formatTime(q.createdAt)}
           </div>
-        );
-      })}
 
-      <div style={{ marginTop: 20 }}>
-        <textarea
-          placeholder="Describe your question..."
-          value={desc}
-          onChange={e => setDesc(e.target.value)}
-          style={{ width: "100%", height: 70, padding: 8, borderRadius: 8, resize: "none" }}
-        />
-        <button onClick={submitQuestion} style={{ marginTop: 10 }}>
-          Submit Question
-        </button>
-      </div>
+          {qAnswers.map(a => (
+            <div
+              id={a.id}
+              key={a.id}
+              style={{
+                background: "white",
+                padding: 8,
+                borderRadius: 8,
+                marginTop: 6
+              }}
+            >
+              {a.content}
+              <div style={{ fontSize: 12 }}>
+                Answered anonymously • {formatTime(a.createdAt)}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    })}
+  </div>
+
+  {/* UNANSWERED */}
+  <div style={{ flex: 1 }}>
+    <div
+      style={{
+        background: "#fee2e2",
+        padding: 12,
+        borderRadius: 10,
+        marginBottom: 10,
+        fontWeight: "bold"
+      }}
+    >
+      Unanswered
+    </div>
+
+    {unansweredQuestions.map(q => {
+      const qAnswers = answers.filter(a => a.questionId === q.id);
+      const isMine = q.askedById === myUid;
+
+      return (
+        <div
+          id={q.id}
+          key={q.id}
+          style={{
+            background: "#fef2f2",
+            padding: 14,
+            borderRadius: 10,
+            marginBottom: 14
+          }}
+        >
+          <b>{q.content}</b>
+
+          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>
+            Posted anonymously • {formatTime(q.createdAt)}
+          </div>
+
+          {isMine && (
+            <div style={{ color: "#f59e0b", fontSize: 13 }}>
+              ⏳ Waiting for answer
+            </div>
+          )}
+        </div>
+      );
+    })}
+  </div>
+
+</div>
+
+
     </div>
   );
 }

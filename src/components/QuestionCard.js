@@ -1,8 +1,7 @@
-export default function QuestionCard({ question, onSelect }) {
+export default function QuestionCard({ question }) {
   return (
-    <div className="question-card" onClick={() => onSelect(question)}>
-      <h4>{question.title}</h4>
-      <p>{question.description}</p>
+    <div className="question-card" style={{ marginBottom: 20 }}>
+      <h3>{question.title}</h3>
     </div>
   );
 }

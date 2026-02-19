@@ -10,15 +10,9 @@ export default function Login() {
   const navigate = useNavigate();
 
   const validate = () => {
-    if (!email || !password)
-      return "All fields are required";
-
-    if (!/^\S+@\S+\.\S+$/.test(email))
-      return "Invalid email format";
-
-    if (password.length < 6)
-      return "Password must be at least 6 characters";
-
+    if (!email || !password) return "All fields are required";
+    if (!/^\S+@\S+\.\S+$/.test(email)) return "Invalid email format";
+    if (password.length < 6) return "Password must be at least 6 characters";
     return null;
   };
 
@@ -32,39 +26,71 @@ export default function Login() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       setPopup({ text: "Login successful", type: "success" });
-
       setTimeout(() => navigate("/dashboard"), 2000);
-    } catch {
-      setPopup({ text: "Wrong credentials. Try again.", type: "error" });
-    }
+    } catch (error) {
+  console.error("LOGIN ERROR:", error);
+  setPopup({ text: error.message, type: "error" });
+}
+
   };
 
   return (
-    <div className="auth-container">
+    <div style={styles.page}>
+      <div style={styles.card}>
+        <h2 style={styles.title}>GuideU Login</h2>
 
-      {popup && (
-        <div className="popup-overlay">
-          <div className={`popup-box popup-${popup.type}`}>
-            {popup.type === "error" && (
-              <span className="popup-close" onClick={() => setPopup(null)}>×</span>
-            )}
-            {popup.text}
-          </div>
-        </div>
-      )}
+        <input style={styles.input} placeholder="Email" onChange={e => setEmail(e.target.value)} />
+        <input style={styles.input} type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
 
-      <div className="form-box">
-        <h2>Login</h2>
+        <button style={styles.button} onClick={login}>Login</button>
 
-        <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
-        <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
-
-        <button onClick={login}>Login</button>
-
-        <p style={{ textAlign: "center" }}>
+        <p style={styles.text}>
           New user? <Link to="/register">Create account</Link>
         </p>
       </div>
+
+      {popup && <div style={{ ...styles.popup, background: popup.type === "error" ? "#fee2e2" : "#dcfce7" }}>{popup.text}</div>}
     </div>
   );
 }
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "linear-gradient(to right, #f8fafc, #eef2ff)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  card: {
+    width: 360,
+    padding: 32,
+    borderRadius: 14,
+    background: "white",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.1)"
+  },
+  title: { textAlign: "center", marginBottom: 20 },
+  input: {
+    width: "100%",
+    padding: 10,
+    marginBottom: 12,
+    borderRadius: 6,
+    border: "1px solid #c7d2fe"
+  },
+  button: {
+    width: "100%",
+    padding: 10,
+    background: "#2563eb",
+    color: "white",
+    borderRadius: 6,
+    border: "none",
+    cursor: "pointer"
+  },
+  text: { marginTop: 14, textAlign: "center" },
+  popup: {
+    position: "fixed",
+    bottom: 20,
+    padding: 12,
+    borderRadius: 6
+  }
+};

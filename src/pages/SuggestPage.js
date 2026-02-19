@@ -1,13 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { auth, db } from "../firebase";
+import { increment, updateDoc } from "firebase/firestore";
+
 import {
   collection,
-  getDocs,
+  onSnapshot,
   addDoc,
   serverTimestamp,
-  updateDoc,
   doc,
-  getDoc
+  getDoc,
+  query,
+  orderBy
 } from "firebase/firestore";
 import { useSearchParams } from "react-router-dom";
 import ProfileMenu from "../components/ProfileMenu";
@@ -17,148 +20,286 @@ export default function SuggestPage() {
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState([]);
   const [answerText, setAnswerText] = useState({});
-  const [editText, setEditText] = useState({});
-  const [params] = useSearchParams();
+  const [activeYear, setActiveYear] = useState(null);
 
+  const [params] = useSearchParams();
   const selectedBranch = params.get("branch");
 
+  /* ================= LOAD PROFILE + REALTIME DATA ================= */
   useEffect(() => {
+    let unsubQ = () => {};
+    let unsubA = () => {};
+
     const load = async () => {
       const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
-      const me = userSnap.data();
-      setProfile(me);
+      setProfile(userSnap.data());
 
-      const qSnap = await getDocs(collection(db, "questions"));
-      const aSnap = await getDocs(collection(db, "answers"));
+      const qRef = query(collection(db, "questions"), orderBy("createdAt", "desc"));
 
-      const allQ = qSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const allA = aSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      unsubQ = onSnapshot(qRef, snap => {
+        const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const filtered = selectedBranch
+          ? all.filter(q => q.branch === selectedBranch)
+          : all;
+        setQuestions(filtered);
+      });
 
-      const filtered = selectedBranch
-        ? allQ.filter(q => q.branch === selectedBranch)
-        : allQ;
-
-      setQuestions(filtered);
-      setAnswers(allA);
+      unsubA = onSnapshot(collection(db, "answers"), snap => {
+        setAnswers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      });
     };
 
     load();
+
+    return () => {
+      unsubQ();
+      unsubA();
+    };
   }, [selectedBranch]);
 
-  if (!profile) return null;
+  /* ================= YEAR LOGIC ================= */
+  const userYear = profile?.year === "alumni" ? 5 : Number(profile?.year);
+  const maxYear = userYear ? userYear - 1 : 0;
 
-  const userYear = profile.year === "alumni" ? 5 : Number(profile.year);
-  const maxYear = userYear - 1;
+  const years = useMemo(() => {
+  const arr = [];
+  for (let y = 1; y <= maxYear; y++) {
+    arr.push(y);
+  }
+  return arr;
+}, [maxYear]);
 
-  const years = [];
-  for (let y = 1; y <= maxYear; y++) years.push(y);
 
-  const submitAnswer = async (qid) => {
-    if (!answerText[qid]?.trim()) return;
+  useEffect(() => {
+    if (years.length && !activeYear) setActiveYear(years[0]);
+  }, [years, activeYear]);
 
-    await addDoc(collection(db, "answers"), {
+  if (!profile || !activeYear) return null;
+  const canAnswer = profile.year !== 1;
+
+
+  /* ================= SUBMIT ANSWER ================= */
+  
+
+ const submitAnswer = async (qid) => {
+  if (profile.year === 1) {
+  alert("1st years cannot answer questions.");
+  return;
+}
+
+  if (!answerText[qid]?.trim()) {
+    alert("Please write an answer");
+    
+    return;
+  }
+
+  // ✅ 1️⃣ Save answer
+  const answerRef = await addDoc(collection(db, "answers"), {
+    questionId: qid,
+    content: answerText[qid],
+    answeredById: auth.currentUser.uid,
+    answeredByYear: userYear,
+    usefulCount: 0,
+    notUsefulCount: 0,
+    createdAt: serverTimestamp()
+  });
+
+  // ✅ 2️⃣ Increase answersGiven count
+// 🔥 Increment questionsAnswered for the answerer
+await updateDoc(doc(db, "users", auth.currentUser.uid), {
+  questionsAnswered: increment(1)
+}).catch(async () => {
+  await updateDoc(doc(db, "users", auth.currentUser.uid), {
+    questionsAnswered: 1
+  });
+});
+
+
+  // 🔔 Notify question owner
+  const questionDoc = await getDoc(doc(db, "questions", qid));
+  const questionData = questionDoc.data();
+
+  if (questionData.askedById !== auth.currentUser.uid) {
+    await addDoc(collection(db, "notifications"), {
+      userId: questionData.askedById,
+      message: `Your question from ${questionData.branch} Branch - ${questionData.askedByYear} Year was answered`,
+      type: "answer",
+      branch: questionData.branch,
       questionId: qid,
-      content: answerText[qid],
-      answeredById: auth.currentUser.uid,
-      answeredByYear: userYear,
+      answerId: answerRef.id,
+      isRead: false,
       createdAt: serverTimestamp()
     });
+  }
 
-    const aSnap = await getDocs(collection(db, "answers"));
-    setAnswers(aSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-    setAnswerText({ ...answerText, [qid]: "" });
-  };
+  setAnswerText({ ...answerText, [qid]: "" });
+};
 
-  const saveEdit = async (aid) => {
-    await updateDoc(doc(db, "answers", aid), { content: editText[aid] });
+  /* ================= FILTER QUESTIONS ================= */
+  const yearQuestions = questions.filter(
+    q => Number(q.askedByYear) === activeYear
+  );
 
-    const aSnap = await getDocs(collection(db, "answers"));
-    setAnswers(aSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-    setEditText({ ...editText, [aid]: "" });
+  const hasAnyAnswer = (qid) =>
+    answers.some(a => a.questionId === qid);
+
+  const answered = yearQuestions.filter(q => hasAnyAnswer(q.id));
+  const unanswered = yearQuestions.filter(q => !hasAnyAnswer(q.id));
+
+  /* ================= STYLES ================= */
+  const submitBtn = {
+    background: "#2563eb",
+    color: "#fff",
+    border: "none",
+    padding: "8px 18px",
+    borderRadius: 8,
+    fontWeight: 600,
+    cursor: "pointer",
+    marginTop: 8
   };
 
   return (
     <div style={{ padding: 20 }}>
       <ProfileMenu />
 
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${years.length}, 1fr)`, gap: 16 }}>
-        {years.map(year => {
-          const yearQuestions = questions.filter(q => Number(q.askedByYear) === year);
+      {/* RUN THIS ONCE TO FIX OLD DATA */}
+      
+      {/* YEAR BUTTONS */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+        {years.map(y => (
+          <button
+            key={y}
+            onClick={() => setActiveYear(y)}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 8,
+              border: "none",
+              background: activeYear === y ? "#2563eb" : "#e5e7eb",
+              color: activeYear === y ? "white" : "black",
+              fontWeight: 600
+            }}
+          >
+            {y} Year
+          </button>
+        ))}
+      </div>
 
-          const unanswered = yearQuestions.filter(q =>
-            !answers.some(a => a.questionId === q.id)
-          );
 
-          const answered = yearQuestions.filter(q =>
-            answers.some(a => a.questionId === q.id)
-          );
 
-          return (
-            <div key={year} style={{ background: "#f8fafc", padding: 12, borderRadius: 12 }}>
-              <h3 style={{ textAlign: "center" }}>{year} Year</h3>
 
-              <div style={{
-                background: "#dbeafe",
-                color: "#1e40af",
-                padding: "6px 10px",
-                borderRadius: 8,
-                marginTop: 6,
-                fontWeight: 700,
-                textAlign: "center"
-              }}>
-                Answered
-              </div>
+      <div style={{ display: "flex", gap: 20 }}>
 
-              {answered.map(q => (
-                <div key={q.id} style={{ background: "white", padding: 8, borderRadius: 8, marginTop: 6 }}>
-                  <div style={{ fontWeight: 600 }}>{q.content}</div>
+        {/* ================= UNANSWERED ================= */}
+        <div style={{ flex: 1 }}>
+          <div style={{
+            background: "#fee2e2",
+            padding: 10,
+            borderRadius: 10,
+            fontWeight: 700
+          }}>
+            Unanswered
+          </div>
 
-                  {answers.filter(a => a.questionId === q.id).map(a => (
-                    <div key={a.id} style={{ background: "#eef2f7", padding: 6, borderRadius: 6, marginTop: 4 }}>
-                      {a.answeredById === auth.currentUser.uid ? (
-                        <>
-                          <textarea
-                            value={editText[a.id] ?? a.content}
-                            onChange={e => setEditText({ ...editText, [a.id]: e.target.value })}
-                            style={{ width: "100%", height: 40 }}
-                          />
-                          <button onClick={() => saveEdit(a.id)}>Save</button>
-                        </>
-                      ) : (
-                        <div>{a.content}</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ))}
+          {unanswered.map(q => (
+            <div
+              key={q.id}
+              style={{
+                background: "#fff7f7",
+                padding: 12,
+                borderRadius: 10,
+                marginTop: 10
+              }}
+            >
+              <div style={{ fontWeight: 600 }}>{q.content}</div>
 
-              <div style={{
-                background: "#fee2e2",
-                color: "#991b1b",
-                padding: "6px 10px",
-                borderRadius: 8,
-                marginTop: 10,
-                fontWeight: 700,
-                textAlign: "center"
-              }}>
-                Unanswered
-              </div>
+              {canAnswer && (
+  <>
+    <textarea
+      placeholder="Write your answer..."
+      value={answerText[q.id] || ""}
+      onChange={e =>
+        setAnswerText({ ...answerText, [q.id]: e.target.value })
+      }
+      style={{ width: "100%", marginTop: 8 }}
+    />
 
-              {unanswered.map(q => (
-                <div key={q.id} style={{ background: "white", padding: 8, borderRadius: 8, marginTop: 6 }}>
-                  <div style={{ fontWeight: 600 }}>{q.content}</div>
-                  <textarea
-                    placeholder="Write answer..."
-                    value={answerText[q.id] || ""}
-                    onChange={e => setAnswerText({ ...answerText, [q.id]: e.target.value })}
-                    style={{ width: "100%", height: 50, marginTop: 6 }}
-                  />
-                  <button onClick={() => submitAnswer(q.id)}>Submit</button>
-                </div>
-              ))}
+    <button
+      style={submitBtn}
+      onClick={() => submitAnswer(q.id)}
+    >
+      Submit
+    </button>
+  </>
+)}
+
             </div>
-          );
-        })}
+          ))}
+        </div>
+
+        {/* ================= ANSWERED ================= */}
+        <div style={{ flex: 1 }}>
+          <div style={{
+            background: "#dcfce7",
+            padding: 10,
+            borderRadius: 10,
+            fontWeight: 700
+          }}>
+            Answered
+          </div>
+
+          {answered.map(q => (
+            <div
+  id={q.id}   // 🔥 ADD THIS
+  key={q.id}
+  style={{
+
+                background: "#f0fdf4",
+                padding: 12,
+                borderRadius: 10,
+                marginTop: 10
+              }}
+            >
+             <div style={{ fontWeight: 600 }}>{q.content}</div>
+<div style={{ fontSize: 12, color: "#6b7280" }}>
+  Posted anonymously • {q.createdAt?.toDate().toLocaleString()}
+</div>
+
+
+              {answers
+  .filter(a => a.questionId === q.id)
+  .map(a => (
+    <div
+  id={a.id}   // 🔥 ADD THIS
+  key={a.id}
+  style={{ background: "#ecfeff", padding: 8, borderRadius: 8, marginTop: 6 }}
+>
+
+      {a.content}
+      <div style={{ fontSize: 12, marginTop: 4 }}>
+  Answered anonymously • {a.createdAt?.toDate().toLocaleString()}
+</div>
+
+    </div>
+))}
+
+              <textarea
+                placeholder="Add another answer..."
+                value={answerText[q.id] || ""}
+                onChange={e =>
+                  setAnswerText({ ...answerText, [q.id]: e.target.value })
+                }
+                style={{ width: "100%", marginTop: 10 }}
+              />
+
+              <button
+                style={submitBtn}
+                onClick={() => submitAnswer(q.id)}
+              >
+                Submit
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
