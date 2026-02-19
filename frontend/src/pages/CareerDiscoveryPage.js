@@ -51,53 +51,57 @@ export default function CareerDiscoveryPage() {
     );
   }
 
-  const calculateCareer = () => {
-    const score = {
-      "Software Engineer": 0,
-      "Data Analyst": 0,
-      "ML Engineer": 0,
-      "Startup Founder": 0,
-      "Higher Studies": 0
-    };
-
-    if (["software","web","mobile"].includes(form.interest)) score["Software Engineer"] += 4;
-    if (["ai","ml"].includes(form.interest)) score["ML Engineer"] += 4;
-    if (["data","analytics"].includes(form.interest)) score["Data Analyst"] += 4;
-    if (["startup","product"].includes(form.interest)) score["Startup Founder"] += 4;
-    if (["gate","research"].includes(form.interest)) score["Higher Studies"] += 4;
-
-    if (["logic","problem-solving"].includes(form.strength)) score["Software Engineer"] += 3;
-    if (["analysis","math"].includes(form.strength)) score["Data Analyst"] += 3;
-    if (["creativity","design"].includes(form.strength)) score["Startup Founder"] += 3;
-
-    if (form.learningStyle === "hands-on") score["Software Engineer"] += 2;
-    if (form.learningStyle === "reading") score["Higher Studies"] += 2;
-
-    if (form.goal === "job") score["Software Engineer"] += 2;
-    if (form.goal === "research") score["Higher Studies"] += 3;
-    if (form.goal === "startup") score["Startup Founder"] += 3;
-
-    if (["python","r"].includes(form.currentSkill)) {
-      score["ML Engineer"] += 2;
-      score["Data Analyst"] += 2;
-    }
-
-    if (["js","java"].includes(form.currentSkill)) score["Software Engineer"] += 2;
-    if (["sql","excel"].includes(form.currentSkill)) score["Data Analyst"] += 2;
-
-    return Object.entries(score).sort((a,b)=>b[1]-a[1])[0][0];
+  // ML placeholder
+  const predictCareer = () => {
+    // TODO: Replace with ML model
+    return "Software Engineer";
   };
 
+  // Roadmap with phases, skills, and badges
   const buildRoadmap = (career) => {
     const plans = {
-      "Software Engineer": ["Programming Foundations","DSA","Web Basics","Advanced JavaScript","Backend & APIs","Databases","Mini Projects","Full Stack Project","Open Source","Interview Prep","Internships","Final Capstone"],
-      "Data Analyst": ["Python & Excel","Statistics","SQL","Data Cleaning","Visualization","BI Tools","Mini Projects","Advanced Analytics","Domain Focus","Portfolio","Internships","Final Project"],
-      "ML Engineer": ["Python & Math","Linear Algebra","Statistics","ML Algorithms","Evaluation","Deep Learning","Mini ML Projects","Deployment","Advanced ML","Research","Internships","Final ML Project"],
-      "Startup Founder": ["Problem Discovery","Market Research","Ideation","MVP","User Feedback","Growth","Funding","Marketing","Sales","Scale","Legal","Launch"],
-      "Higher Studies": ["Core Subjects","Advanced Math","Research Methods","Literature Review","Exam Prep","Mocks","Weak Areas","Projects","Thesis","Applications","Interviews","Submission"]
+      "Software Engineer": [
+        {
+          phase: "Foundations",
+          months: [1, 2, 3],
+          skills: [
+            { name: "Programming Basics", level: "beginner" },
+            { name: "Problem Solving", level: "beginner" },
+            { name: "Git & Version Control", level: "beginner" }
+          ]
+        },
+        {
+          phase: "Core Skills",
+          months: [4, 5, 6],
+          skills: [
+            { name: "Web Development", level: "intermediate" },
+            { name: "Backend Fundamentals", level: "intermediate" },
+            { name: "DSA Intermediate", level: "intermediate" }
+          ]
+        },
+        {
+          phase: "Advanced Projects",
+          months: [7, 8, 9],
+          skills: [
+            { name: "Full Stack Applications", level: "advanced" },
+            { name: "Open Source Contribution", level: "advanced" },
+            { name: "Interview Prep", level: "advanced" }
+          ]
+        },
+        {
+          phase: "Professional Milestones",
+          months: [10, 11, 12],
+          skills: [
+            { name: "Portfolio Building", level: "master" },
+            { name: "Internship / Freelance", level: "master" },
+            { name: "Capstone Project", level: "master" }
+          ]
+        }
+      ]
+      // Add other careers similarly
     };
 
-    return plans[career].map((focus, i) => ({ month: i + 1, focus }));
+    return plans[career] || [];
   };
 
   const submitQuiz = async () => {
@@ -114,7 +118,7 @@ export default function CareerDiscoveryPage() {
     }
 
     setError("");
-    const career = calculateCareer();
+    const career = predictCareer();
     const roadmap = buildRoadmap(career);
 
     await setDoc(doc(db, "careerProfiles", auth.currentUser.uid), {
@@ -127,14 +131,28 @@ export default function CareerDiscoveryPage() {
     setResult({ targetCareer: career, roadmap });
   };
 
-  return (
-    <div style={{ height: "100vh", background: "#f4f6fa", display: "flex", justifyContent: "center", alignItems: "center" }}>
-      <div style={{ width: "100%", maxWidth: 900, background: "white", padding: "28px 36px", borderRadius: 16, boxShadow: "0 10px 25px rgba(0,0,0,0.1)" }}>
+  // Map skill levels to colors / badges
+  const skillBadge = (level) => {
+    const colors = {
+      beginner: "#e0f2fe",
+      intermediate: "#bae6fd",
+      advanced: "#38bdf8",
+      master: "#0284c7"
+    };
+    return { background: colors[level], padding: "4px 8px", borderRadius: 6, marginRight: 6, fontSize: 13, fontWeight: 600 };
+  };
 
-        <h2 style={{ textAlign: "center", marginBottom: 20 }}>Career Discovery</h2>
+  return (
+    <div style={{ minHeight: "100vh", background: "#f4f6fa", display: "flex", justifyContent: "center", padding: 20 }}>
+      <div style={{ width: "100%", maxWidth: 1000, background: "white", padding: 28, borderRadius: 16, boxShadow: "0 10px 25px rgba(0,0,0,0.1)" }}>
 
         {!result && (
           <>
+            <h2 style={{ textAlign: "center", marginBottom: 16 }}> CareerDiscovery</h2>
+            <p style={{ textAlign: "center", color: "#555", marginBottom: 24 }}>
+              Take our data-driven career assessment test to discover personalized career options, skill recommendations, and learning paths tailored to your profile.
+            </p>
+
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <Field label="Primary Interest"><Select name="interest" options={["Software","Web","Mobile","AI","ML","Data","Analytics","Startup","Product","GATE","Research"]} /></Field>
               <Field label="Strongest Skill"><Select name="strength" options={["Logic","Problem-Solving","Analysis","Math","Creativity","Design"]} /></Field>
@@ -148,25 +166,34 @@ export default function CareerDiscoveryPage() {
 
             {error && <p style={{ color: "red", marginTop: 10 }}>{error}</p>}
 
-            <button onClick={submitQuiz} style={{ marginTop: 16, width: "100%", padding: "12px 0", background: "#2563eb", color: "white", borderRadius: 10, border: "none", fontSize: 16, fontWeight: 600, cursor: "pointer" }}>
-              See My Career Path
+            <button onClick={submitQuiz} style={{ marginTop: 24, width: "100%", padding: "12px 0", background: "#2563eb", color: "white", borderRadius: 10, border: "none", fontSize: 16, fontWeight: 600, cursor: "pointer" }}>
+              Click here to know
             </button>
           </>
         )}
 
         {result && (
-          <div style={{ marginTop: 18, padding: 22, borderRadius: 14, background: "#f9fafb", position: "relative" }}>
-            <button onClick={() => setResult(null)} style={{ position: "absolute", top: 12, right: 12, background: "#2563eb", color: "white", border: "none", borderRadius: 8, width: 32, height: 32, cursor: "pointer" }}>✕</button>
-            <h3>Suggested Career: {result.targetCareer}</h3>
-            <h4 style={{ marginTop: 10 }}>12-Month Learning Roadmap</h4>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8 }}>
-              {result.roadmap.map(step => (
-                <div key={step.month}><b>Month {step.month}</b> — {step.focus}</div>
-              ))}
-            </div>
+          <div style={{ marginTop: 18 }}>
+            <button onClick={() => setResult(null)} style={{ float: "right", background: "#2563eb", color: "white", border: "none", borderRadius: 8, width: 32, height: 32, cursor: "pointer" }}>✕</button>
+
+            <h3 style={{ color: "#0284c7" }}>🎯 Suggested Career: {result.targetCareer}</h3>
+            <p style={{ marginTop: 6, color: "#555" }}>
+              Based on your interests, strengths, learning style, and goals, this career is the best fit for you. Follow the personalized roadmap to build the required skills and milestones.
+            </p>
+
+            <h4 style={{ marginTop: 16 }}>Personalized Learning Roadmap</h4>
+            {result.roadmap.map(phase => (
+              <div key={phase.phase} style={{ marginTop: 12, padding: 16, background: "#f0f9ff", borderRadius: 12 }}>
+                <h5 style={{ marginBottom: 8, color: "#2563eb" }}>{phase.phase} (Months {phase.months[0]}–{phase.months[phase.months.length-1]})</h5>
+                <div style={{ display: "flex", flexWrap: "wrap" }}>
+                  {phase.skills.map(skill => (
+                    <span key={skill.name} style={skillBadge(skill.level)}>{skill.name}</span>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
-
       </div>
     </div>
   );

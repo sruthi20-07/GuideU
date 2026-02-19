@@ -65,7 +65,7 @@ export default function RoadmapPage() {
 
   const toggleStep = (index) => {
     const newCompleted = { ...completed };
-    
+
     // Only allow marking the current step if previous steps are completed
     if (index === 0 || completed[index - 1]) {
       newCompleted[index] = !completed[index];
@@ -73,85 +73,132 @@ export default function RoadmapPage() {
     }
 
     // Congrats popup after all completed
-    if (roadmap.length > 0 && Object.values(newCompleted).length === roadmap.length &&
-        Object.values(newCompleted).every((v) => v === true)) {
-      setTimeout(() => alert("🎉 Congratulations! You have completed the roadmap!"), 200);
+    if (
+      roadmap.length > 0 &&
+      Object.values(newCompleted).length === roadmap.length &&
+      Object.values(newCompleted).every((v) => v === true)
+    ) {
+      setTimeout(
+        () => alert("🎉 Congratulations! You have completed the roadmap!"),
+        200
+      );
     }
   };
 
   return (
     <div style={{ padding: 20, maxWidth: 800, margin: "auto" }}>
-      <h1 style={{ fontSize: 28, fontWeight: "bold", marginBottom: 20 }}>AI Roadmap Generator</h1>
+      <h1 style={{ fontSize: 28, fontWeight: "bold", marginBottom: 20 }}>
+        AI Roadmap Generator
+      </h1>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 30 }}>
-        <select value={topic} onChange={(e) => setTopic(e.target.value)} style={{ padding: 8, flex: 1 }}>
+        <select
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
+          style={{ padding: 8, flex: 1 }}
+        >
           <option value="">Select Topic</option>
           {Object.keys(topicsData).map((t) => (
-            <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+            <option key={t} value={t}>
+              {t.charAt(0).toUpperCase() + t.slice(1)}
+            </option>
           ))}
         </select>
 
-        <select value={hours} onChange={(e) => setHours(Number(e.target.value))} style={{ padding: 8 }}>
+        <select
+          value={hours}
+          onChange={(e) => setHours(Number(e.target.value))}
+          style={{ padding: 8 }}
+        >
           {[...Array(8)].map((_, i) => (
-            <option key={i} value={i + 1}>{i + 1} {i === 0 ? "hour" : "hours"}</option>
+            <option key={i} value={i + 1}>
+              {i + 1} {i === 0 ? "hour" : "hours"}
+            </option>
           ))}
         </select>
 
-        <button onClick={handleGenerate} style={{ padding: "8px 16px" }}>Generate Roadmap</button>
+        <button onClick={handleGenerate} style={{ padding: "8px 16px" }}>
+          Generate Roadmap
+        </button>
       </div>
 
       {/* Vertical roadmap */}
       <div style={{ position: "relative", marginLeft: 40 }}>
-        {roadmap.map((step, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "flex-start", marginBottom: 50, position: "relative" }}>
-            
-            {/* Connector line */}
-            {i !== roadmap.length - 1 && (
-              <div style={{
-                position: "absolute",
-                top: 30,
-                left: 12,
-                width: 4,
-                height: 50,
-                backgroundColor: completed[i] ? "green" : "#ccc",
-                transition: "background-color 0.3s"
-              }} />
-            )}
+        {/* Full vertical line */}
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            left: 12,
+            width: 4,
+            height: roadmap.length * 80, // approximate height for all steps
+            background: "#ccc",
+            zIndex: 0,
+          }}
+        />
 
+        {roadmap.map((step, i) => (
+          <div
+            key={i}
+            style={{ display: "flex", alignItems: "flex-start", marginBottom: 50, position: "relative" }}
+          >
             {/* Step circle */}
-            <div onClick={() => toggleStep(i)} style={{
-              width: 24,
-              height: 24,
-              borderRadius: "50%",
-              backgroundColor: completed[i] ? "green" : "#3b82f6",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#fff",
-              fontWeight: "bold",
-              cursor: "pointer",
-              zIndex: 2
-            }}>
+            <div
+              onClick={() => toggleStep(i)}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: "50%",
+                backgroundColor: completed[i] ? "green" : "#3b82f6",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                fontWeight: "bold",
+                cursor: "pointer",
+                zIndex: 2,
+              }}
+            >
               {completed[i] ? <FaCheckCircle /> : i + 1}
             </div>
 
             {/* Step card */}
-            <div style={{
-              backgroundColor: "#f9f9f9",
-              padding: 16,
-              borderRadius: 6,
-              marginLeft: 20,
-              flex: 1
-            }}>
+            <div
+              style={{
+                backgroundColor: "#f9f9f9",
+                padding: 16,
+                borderRadius: 6,
+                marginLeft: 20,
+                flex: 1,
+              }}
+            >
               <h2 style={{ margin: "0 0 8px 0" }}>{step.step}</h2>
               <ul style={{ margin: 0, paddingLeft: 20 }}>
                 {step.details.map((d, idx) => (
-                  <li key={idx}><a href={d.link} target="_blank" rel="noopener noreferrer">{d.text}</a></li>
+                  <li key={idx}>
+                    <a href={d.link} target="_blank" rel="noopener noreferrer">
+                      {d.text}
+                    </a>
+                  </li>
                 ))}
               </ul>
             </div>
           </div>
         ))}
+
+        {/* Dynamic green progress line */}
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            left: 12,
+            width: 4,
+            height: roadmap.reduce((acc, _, i) => (completed[i] ? acc + 80 : acc), 0),
+            background: "green",
+            zIndex: 1,
+            transition: "height 0.3s",
+          }}
+        />
       </div>
     </div>
   );
